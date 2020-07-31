@@ -1,4 +1,4 @@
-FROM drachtio/drachtio-freeswitch-base:latest
+FROM lylepratt/drachtio-freeswitch-base:latest
 
 COPY ./entrypoint.sh /
 COPY ./freeswitch.xml /usr/local/freeswitch/conf/freeswitch.xml
