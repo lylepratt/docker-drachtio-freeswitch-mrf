@@ -229,9 +229,9 @@ COPY ./autoload_configs/conference_layouts.conf.xml /usr/local/freeswitch/conf/a
 COPY ./autoload_configs/av.conf.xml /usr/local/freeswitch/conf/autoload_configs/av.conf.xml
 
 # ENVs
-ENV MNT_POINT /var/s3fs
 ENV COPY_POINT /var/pres3fs
-ENV S3_BUCKET vidamedia
+#ENV MNT_POINT /var/s3fs
+#ENV S3_BUCKET vidamedia
 ENV NODE_VERSION=18
 ENV NVM_DIR=/root/.nvm
 ENV NODE_PATH /root/.nvm/versions/node/v${NODE_VERSION}/lib/node_modules
@@ -250,8 +250,8 @@ RUN apt-get update && apt-get install -y --quiet s3fs awscli rsyslog inotify-too
     npm install axios@^1.5.0 -g
 
 # Directory setup
-RUN mkdir -p "$MNT_POINT" && \
-    mkdir -p "$COPY_POINT"
+#RUN mkdir -p "$MNT_POINT"
+RUN mkdir -p "$COPY_POINT"
 
 # Copy scripts and configs
 ADD monitorPres3fs.sh /
