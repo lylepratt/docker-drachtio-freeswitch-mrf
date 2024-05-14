@@ -9,11 +9,11 @@
       <param name="rfc2833-pt" value="101"/>
 
       <param name="dtmf-type" value="rfc2833"/>
-      
+
       <param name="inbound-late-negotiation" value="true"/>
       <param name="rtp-ip" value="$${local_ip_v4}"/>
       <param name="sip-ip" value="$${local_ip_v4}"/>
-      <param name="sip-port" value="5080"/>
+      <param name="sip-port" value="$${sip_port}"/>
       <param name="ext-rtp-ip" value="$${local_ip_v4}"/>
       <param name="ext-sip-ip" value="$${local_ip_v4}"/>
       <param name="auth-calls" value="false"/>
@@ -39,7 +39,7 @@
       <!-- additional bind parameters for TLS -->
       <param name="tls-bind-params" value="transport=tls"/>
       <!-- Port to listen on for TLS requests. (5061 will be used if unspecified) -->
-      <param name="tls-sip-port" value="5061"/>
+      <param name="tls-sip-port" value="$${tls_port}"/>
       <!-- Location of the agent.pem and cafile.pem ssl certificates (needed for TLS server) -->
       <!--<param name="tls-cert-dir" value="/usr/local/freeswitch/certs"/>-->
       <!-- Optionally set the passphrase password used by openSSL to encrypt/decrypt TLS private key files -->
@@ -63,4 +63,3 @@
 
     </settings>
   </profile>
-</include>
