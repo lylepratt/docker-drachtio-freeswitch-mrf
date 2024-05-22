@@ -1,47 +1,22 @@
-#!/bin/sh
+#!/bin/bash
+
+# Log file
+LOG_FILE="/var/log/monitorPres3fs.log"
 
 # Directory to monitor
 WATCH_DIR="/var/pres3fs"
-# Interval to check file size in seconds
-CHECK_INTERVAL=5
-# Number of checks to confirm inactivity
-CHECK_COUNT=3
 
-inotifywait -m -e close_write --format '%f' "$WATCH_DIR" | while read FILE
-do
-    FILE_PATH="$WATCH_DIR/$FILE"
-    echo "File detected: $FILE_PATH"
+process_file() {
+    local FILE_PATH="$1"
+    local FILE="$2"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Processing file: $FILE_PATH" >> "$LOG_FILE"
 
-    # Function to check if the file size remains the same
-    is_stable_size() {
-        SIZE1=$(stat -c %s "$FILE_PATH")
-        sleep "$CHECK_INTERVAL"
-        SIZE2=$(stat -c %s "$FILE_PATH")
-        if [ "$SIZE1" -eq "$SIZE2" ]; then
-            return 0
-        else
-            return 1
-        fi
-    }
-
-    # Wait until the file size is stable for CHECK_COUNT times
-    STABLE_COUNT=0
-    while [ "$STABLE_COUNT" -lt "$CHECK_COUNT" ]; do
-        if is_stable_size; then
-            STABLE_COUNT=$((STABLE_COUNT + 1))
-            echo "File size for $FILE_PATH is stable for $STABLE_COUNT/$CHECK_COUNT checks"
-        else
-            STABLE_COUNT=0
-            echo "File size for $FILE_PATH is not stable, resetting checks"
-        fi
-    done
-
-    echo "Attempting to copy $FILE_PATH to s3://vidamedia/recordings/$FILE"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Attempting to copy $FILE_PATH to s3://vidamedia/recordings/$FILE" >> "$LOG_FILE"
     
     if aws s3 cp "$FILE_PATH" "s3://vidamedia/recordings/$FILE" --cache-control no-cache; then
-        echo "File $FILE_PATH copied successfully to S3."
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - File $FILE_PATH copied successfully to S3." >> "$LOG_FILE"
     else
-        echo "Failed to copy file $FILE_PATH to S3"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Failed to copy file $FILE_PATH to S3" >> "$LOG_FILE"
     fi
 
     # Wait a bit before deleting old files to avoid immediate removal issues
@@ -49,4 +24,12 @@ do
 
     # Delete files older than 3 days
     find "$WATCH_DIR" -type f -mtime +3 -exec rm {} \;
+}
+
+# Monitor directory for new files
+inotifywait -m -e close_write --format '%f' "$WATCH_DIR" | while read -r FILE
+do
+    FILE_PATH="$WATCH_DIR/$FILE"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - File detected: $FILE_PATH" >> "$LOG_FILE"
+    (process_file "$FILE_PATH" "$FILE") &
 done
