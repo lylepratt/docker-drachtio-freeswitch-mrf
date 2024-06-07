@@ -91,7 +91,11 @@ RUN tar xvfz SpeechSDK-Linux-1.37.0.tar.gz \
 
 FROM base AS freeswitch-modules
 WORKDIR /usr/local/src
-RUN git clone --depth 1 https://github.com/jambonz/freeswitch-modules.git -b 1.2.15
+RUN git clone --depth 1 https://github.com/jambonz/freeswitch-modules.git -b main
+
+FROM base AS drachtio-freeswitch-modules
+WORKDIR /usr/local/src
+RUN git clone --depth 1 https://github.com/drachtio/drachtio-freeswitch-modules.git -b v0.8.14
 
 FROM base AS spandsp
 WORKDIR /usr/local/src
@@ -159,6 +163,7 @@ WORKDIR /usr/local/src
 ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
 RUN git clone --depth 1 --branch v1.10.10 https://github.com/signalwire/freeswitch.git
 COPY --from=freeswitch-modules /usr/local/src/freeswitch-modules/ /usr/local/src/freeswitch/src/mod/applications/
+COPY --from=drachtio-freeswitch-modules /usr/local/src/drachtio-freeswitch-modules/modules/mod_google_tts /usr/local/src/freeswitch/src/mod/applications/mod_google_tts
 COPY --from=nuance-asr-grpc-api /usr/local/src/nuance-asr-grpc-api /usr/local/src/freeswitch/libs/nuance-asr-grpc-api
 COPY --from=riva-asr-grpc-api /usr/local/src/riva-asr-grpc-api /usr/local/src/freeswitch/libs/riva-asr-grpc-api
 COPY --from=soniox-asr-grpc-api /usr/local/src/soniox-asr-grpc-api /usr/local/src/freeswitch/libs/soniox-asr-grpc-api

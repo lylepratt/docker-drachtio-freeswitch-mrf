@@ -2161,6 +2161,7 @@ AC_CONFIG_FILES([Makefile
     src/mod/applications/mod_azure_tts/Makefile
     src/mod/applications/mod_cobalt_transcribe/Makefile
     src/mod/applications/mod_google_transcribe/Makefile
+    src/mod/applications/mod_google_tts/Makefile
     src/mod/applications/mod_deepgram_transcribe/Makefile
     src/mod/applications/mod_deepgram_tts/Makefile
     src/mod/applications/mod_dub/Makefile
