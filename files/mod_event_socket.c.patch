@@ -1,0 +1,73 @@
+--- mod_event_socket.c	2024-10-12 16:31:07
++++ mod_event_socket.c.new	2024-12-05 12:30:55
+@@ -31,6 +31,10 @@
+  *
+  */
+ #include <switch.h>
++
++/* DH: for regex */
++#include <regex.h>
++
+ #define CMD_BUFLEN 1024 * 1000
+ #define MAX_QUEUE_LEN 100000
+ #define MAX_MISSED 500
+@@ -40,6 +44,8 @@
+ SWITCH_MODULE_DEFINITION(mod_event_socket, mod_event_socket_load, mod_event_socket_shutdown, mod_event_socket_runtime);
+ 
+ static char *MARKER = "1";
++static regex_t regex;
++static int regex_is_compiled = 0;
+ 
+ typedef enum {
+ 	LFLAG_AUTHED = (1 << 0),
+@@ -167,6 +173,39 @@
+ static void *SWITCH_THREAD_FUNC listener_run(switch_thread_t *thread, void *obj);
+ static switch_status_t launch_listener_thread(listener_t *listener);
+ 
++/* DH: added to avoid removing carriage returns on tts streaming commands */
++static int is_match_uuid_tts_streaming(const char *input) {
++  int reti;
++
++  // Compile the regex only once
++  if (!regex_is_compiled) {
++      const char *pattern = "^uuid_.*_tts_streaming";
++      if (regcomp(&regex, pattern, REG_EXTENDED) != 0) {
++          switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_CRIT, "Could not compile regex\n");
++          return 0;
++      }
++      regex_is_compiled = 1;
++  }
++
++  if (strncmp(input, "uuid_openai_s2s", 15) == 0) {
++    return 1;
++  }
++  // Execute the regex match
++  reti = regexec(&regex, input, 0, NULL, 0);
++
++  // Check match result
++  if (reti == 0) {
++      return 1; // Match found
++  } else if (reti == REG_NOMATCH) {
++      return 0; // No match
++  } else {
++      char error_msg[256];
++      regerror(reti, &regex, error_msg, sizeof(error_msg));
++      switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "Regex match failed: %s\n", error_msg);
++      return 0;
++  }
++}
++
+ static switch_status_t socket_logger(const switch_log_node_t *node, switch_log_level_t level)
+ {
+ 	listener_t *l;
+@@ -2283,7 +2322,9 @@
+ 
+ 		char *api_cmd = cmd + 4;
+ 		char *arg = NULL;
+-		strip_cr(api_cmd);
++    
++    /* DH: dont remove carriage returns on tts streaming commands */
++    if (!is_match_uuid_tts_streaming(api_cmd)) strip_cr(api_cmd);
+ 
+ 		if (listener->allowed_api_hash) {
+ 			char *api_copy = strdup(api_cmd);

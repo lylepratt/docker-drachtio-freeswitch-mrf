@@ -1,0 +1,76 @@
+--- switch_core_media_bug.c	2024-10-12 16:31:07
++++ switch_core_media_bug.c.new	2024-10-12 16:30:02
+@@ -799,7 +799,7 @@
+ 														  switch_media_bug_flag_t flags,
+ 														  switch_media_bug_t **new_bug)
+ {
+-	switch_media_bug_t *bug, *bp;
++	switch_media_bug_t *bug, *bp, *previous = NULL;
+ 	switch_size_t bytes;
+ 	switch_event_t *event;
+ 	int tap_only = 1, punt = 0, added = 0;
+@@ -976,28 +976,39 @@
+ 	switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "Attaching BUG to %s\n", switch_channel_get_name(session->channel));
+ 	switch_thread_rwlock_wrlock(session->bug_rwlock);
+ 
+-	if (!session->bugs) {
+-		session->bugs = bug;
+-		added = 1;
+-	}
+-
+-	if (!added && switch_test_flag(bug, SMBF_FIRST)) {
+-		bug->next = session->bugs;
+-		session->bugs = bug;
+-		added = 1;
+-	}
++  if (!session->bugs) {
++    session->bugs = bug;
++    added = 1;
++  } else if (!added && switch_test_flag(bug, SMBF_FIRST)) {
++    bug->next = session->bugs;
++    session->bugs = bug;
++    added = 1;
++  }
+ 
+-	for(bp = session->bugs; bp; bp = bp->next) {
+-		if (bp->ready && !switch_test_flag(bp, SMBF_TAP_NATIVE_READ) && !switch_test_flag(bp, SMBF_TAP_NATIVE_WRITE)) {
+-			tap_only = 0;
+-		}
++  previous = NULL;
++  for (bp = session->bugs; bp; bp = bp->next) {
++    if (bp->ready && !switch_test_flag(bp, SMBF_TAP_NATIVE_READ) && !switch_test_flag(bp, SMBF_TAP_NATIVE_WRITE)) {
++      tap_only = 0;
++    }
+ 
+-		if (!added && !bp->next) {
+-			bp->next = bug;
+-			break;
+-		}
+-	}
+-
++    if (!added) {
++      if (switch_test_flag(bp, SMBF_LAST)) {
++        bug->next = bp;
++        if (previous) {
++          previous->next = bug;
++        } else {
++          session->bugs = bug;
++        }
++        added = 1;
++      }
++      else if (!bp->next) {
++        bp->next = bug;
++        bug->next = NULL;
++        added = 1;
++      }
++    }
++    previous = bp;
++  }
+ 	switch_thread_rwlock_unlock(session->bug_rwlock);
+ 	*new_bug = bug;
+ 
+@@ -1488,3 +1499,4 @@
+  * For VIM:
+  * vim:set softtabstop=4 shiftwidth=4 tabstop=4 noet:
+  */
++

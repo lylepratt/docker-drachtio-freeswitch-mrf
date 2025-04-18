@@ -6,27 +6,41 @@ if [ ! -f ".env" ]; then
   exit 1
 fi
 
-cmakeVersion=$(grep cmakeVersion .env | awk -F '=' '{print $2}')
-grpcVersion=$(grep grpcVersion .env | awk -F '=' '{print $2}')
-libwebsocketsVersion=$(grep libwebsocketsVersion .env | awk -F '=' '{print $2}')
-speechSdkVersion=$(grep speechSdkVersion .env | awk -F '=' '{print $2}')
-spandspVersion=$(grep spandspVersion .env | awk -F '=' '{print $2}')
-sofiaVersion=$(grep sofiaVersion .env | awk -F '=' '{print $2}')
-awsSdkCppVersion=$(grep awsSdkCppVersion .env | awk -F '=' '{print $2}')
-freeswitchModulesVersion=$(grep freeswitchModulesVersion .env | awk -F '=' '{print $2}')
-freeswitchVersion=$(grep freeswitchVersion .env | awk -F '=' '{print $2}')
+# Determine which Dockerfile to use.
+# Pass "fs_install" as the first parameter to use Dockerfile_fs_install.
+DOCKERFILE="Dockerfile"
+if [ "$1" == "fs_install" ]; then
+  DOCKERFILE="Dockerfile_fs_install"
+  echo "Using Dockerfile_fs_install for the build."
+else
+  echo "Using default Dockerfile."
+fi
 
-dockerImageRepo=$(grep dockerImageRepo .env | awk -F '=' '{print $2}')
-dockerImageVersion=$(grep dockerImageVersion .env | awk -F '=' '{print $2}')
+# Read variables from .env file.
+# It's assumed that each variable is defined as VAR=value.
+CMAKE_VERSION=$(grep '^CMAKE_VERSION=' .env | awk -F '=' '{print $2}')
+GRPC_VERSION=$(grep '^GRPC_VERSION=' .env | awk -F '=' '{print $2}')
+LIBWEBSOCKETS_VERSION=$(grep '^LIBWEBSOCKETS_VERSION=' .env | awk -F '=' '{print $2}')
+SPEECH_SDK_VERSION=$(grep '^SPEECH_SDK_VERSION=' .env | awk -F '=' '{print $2}')
+SPANDSP_VERSION=$(grep '^SPANDSP_VERSION=' .env | awk -F '=' '{print $2}')
+SOFIA_VERSION=$(grep '^SOFIA_VERSION=' .env | awk -F '=' '{print $2}')
+AWS_SDK_CPP_VERSION=$(grep '^AWS_SDK_CPP_VERSION=' .env | awk -F '=' '{print $2}')
+FREESWITCH_MODULES_VERSION=$(grep '^FREESWITCH_MODULES_VERSION=' .env | awk -F '=' '{print $2}')
+FREESWITCH_VERSION=$(grep '^FREESWITCH_VERSION=' .env | awk -F '=' '{print $2}')
 
-docker build \
-  --build-arg CMAKE_VERSION="${cmakeVersion}" \
-  --build-arg GRPC_VERSION="${grpcVersion}" \
-  --build-arg LIBWEBSOCKETS_VERSION="${libwebsocketsVersion}" \
-  --build-arg SPEECH_SDK_VERSION="${speechSdkVersion}" \
-  --build-arg SPANDSP_VERSION="${spandspVersion}" \
-  --build-arg SOFIA_VERSION="${sofiaVersion}" \
-  --build-arg AWS_SDK_CPP_VERSION="${awsSdkCppVersion}" \
-  --build-arg FREESWITCH_MODULES_VERSION="${freeswitchModulesVersion}" \
-  --build-arg FREESWITCH_VERSION="${freeswitchVersion}" \
-  . --tag "${dockerImageRepo}:${dockerImageVersion}"
+DOCKER_IMAGE_REPO=$(grep '^DOCKER_IMAGE_REPO=' .env | awk -F '=' '{print $2}')
+DOCKER_IMAGE_VERSION=$(grep '^DOCKER_IMAGE_VERSION=' .env | awk -F '=' '{print $2}')
+
+# Build the Docker image using the chosen Dockerfile and build arguments.
+docker build --no-cache --progress=plain \
+  -f "$DOCKERFILE" \
+  --build-arg CMAKE_VERSION="${CMAKE_VERSION}" \
+  --build-arg GRPC_VERSION="${GRPC_VERSION}" \
+  --build-arg LIBWEBSOCKETS_VERSION="${LIBWEBSOCKETS_VERSION}" \
+  --build-arg SPEECH_SDK_VERSION="${SPEECH_SDK_VERSION}" \
+  --build-arg SPANDSP_VERSION="${SPANDSP_VERSION}" \
+  --build-arg SOFIA_VERSION="${SOFIA_VERSION}" \
+  --build-arg AWS_SDK_CPP_VERSION="${AWS_SDK_CPP_VERSION}" \
+  --build-arg FREESWITCH_MODULES_VERSION="${FREESWITCH_MODULES_VERSION}" \
+  --build-arg FREESWITCH_VERSION="${FREESWITCH_VERSION}" \
+  . --tag "${DOCKER_IMAGE_REPO}:${DOCKER_IMAGE_VERSION}"

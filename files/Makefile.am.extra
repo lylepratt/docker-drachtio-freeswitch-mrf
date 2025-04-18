@@ -20,6 +20,16 @@ AM_CFLAGS   = $(SWITCH_AM_CFLAGS) $(SWITCH_ANSI_CFLAGS)
 AM_CPPFLAGS =
 AM_CPPFLAGS += -I$(switch_srcdir)/libs/libvpx
 AM_CPPFLAGS += $(SWITCH_AM_CXXFLAGS)
+
+# DH
+if USE_AVX2
+AM_CPPFLAGS += -mavx2 -DUSE_AVX2
+else
+if USE_SSE2
+AM_CPPFLAGS += -msse2 -DUSE_SSE2
+endif
+endif
+
 AM_LDFLAGS  = $(SWITCH_AM_LDFLAGS) $(AM_LIBAPR_LDFLAGS) $(AM_LIBAPU_LDFLAGS)
 
 DEFAULT_SOUNDS=en-us-callie-8000
@@ -438,8 +448,19 @@ libs/cobalt-asr-grpc-api/stubs/cobaltspeech/transcribe/v5/transcribe.grpc.pb.cc
 
 libfreeswitch_libcobaltapis_la_CPPFLAGS = -I/usr/local/include -I$(COBALT_GENS_PATH) -I./libs/googleapis/gens -std=c++17  -pthread
 
-CORE_LIBS+=libfreeswitch_libgoogleapis.la libfreeswitch_libnuanceapis.la libfreeswitch_libnvidiaapis.la libfreeswitch_libsonioxapis.la libfreeswitch_libcobaltapis.la
-noinst_LTLIBRARIES += libfreeswitch_libgoogleapis.la libfreeswitch_libnuanceapis.la libfreeswitch_libnvidiaapis.la libfreeswitch_libsonioxapis.la libfreeswitch_libcobaltapis.la
+#verbio asr
+nodist_libfreeswitch_libverbioapis_la_SOURCES = \
+libs/verbio-asr-grpc-api/stubs/speechcenter/recognizer/v1/recognition_streaming_request.pb.cc \
+libs/verbio-asr-grpc-api/stubs/speechcenter/recognizer/v1/recognition_streaming_response.pb.cc \
+libs/verbio-asr-grpc-api/stubs/speechcenter/recognizer/v1/recognition_streaming_request.grpc.pb.cc \
+libs/verbio-asr-grpc-api/stubs/speechcenter/recognizer/v1/recognition_streaming_response.grpc.pb.cc \
+libs/verbio-asr-grpc-api/stubs/speechcenter/recognizer/v1/recognition.pb.cc \
+libs/verbio-asr-grpc-api/stubs/speechcenter/recognizer/v1/recognition.grpc.pb.cc
+
+libfreeswitch_libverbioapis_la_CPPFLAGS = -I/usr/local/include -I/usr/local/src/freeswitch/libs/verbio-asr-grpc-api/stubs -std=c++17 -pthread
+
+CORE_LIBS+=libfreeswitch_libgoogleapis.la libfreeswitch_libnuanceapis.la libfreeswitch_libnvidiaapis.la libfreeswitch_libsonioxapis.la libfreeswitch_libcobaltapis.la libfreeswitch_libverbioapis.la
+noinst_LTLIBRARIES += libfreeswitch_libgoogleapis.la libfreeswitch_libnuanceapis.la libfreeswitch_libnvidiaapis.la libfreeswitch_libsonioxapis.la libfreeswitch_libcobaltapis.la libfreeswitch_libverbioapis.la
 
 endif
 
@@ -614,12 +635,14 @@ libfreeswitch_la_SOURCES = \
 	libs/libnatpmp/getgateway.c
 
 if ENABLE_CPP
-libfreeswitch_la_SOURCES += src/switch_cpp.cpp
-endif
 
-#if HAVE_AWS_SDK
-#  libfreeswitch_la_SOURCES += src/aws_wrapper.cpp
-#endif
+# DH
+libfreeswitch_la_SOURCES += src/switch_cpp.cpp \
+src/jambonz/vector_math.cpp \
+src/jambonz/simple_json_parser.cpp \
+src/jambonz/cmd_parser.cpp \
+src/jambonz/audio_player.cpp
+endif
 
 $(libfreeswitch_la_SOURCES): $(CORE_LIBS) $(switch_builddir)/modules.conf  
 
