@@ -24,11 +24,14 @@ imageName="drachtio/drachtio-freeswitch-mrf"
 imageTag="latesttest"
 
 # Create and use a new Buildx builder instance (if not already done)
-docker buildx create --use --name mybuilder --bootstrap || docker buildx use mybuilder
+docker buildx inspect mybuilder >/dev/null 2>&1 || \
+  docker buildx create --name mybuilder --bootstrap
+docker buildx use mybuilder
 
 # Build and push multi-architecture images
+#  --platform linux/amd64,linux/arm64 \
 docker buildx build \
-  --platform linux/amd64,linux/arm64 \
+  --load \
   --build-arg CMAKE_VERSION="${cmakeVersion}" \
   --build-arg GRPC_VERSION="${grpcVersion}" \
   --build-arg LIBWEBSOCKETS_VERSION="${libwebsocketsVersion}" \
@@ -38,7 +41,6 @@ docker buildx build \
   --build-arg AWS_SDK_CPP_VERSION="${awsSdkCppVersion}" \
   --build-arg FREESWITCH_MODULES_VERSION="${freeswitchModulesVersion}" \
   --build-arg FREESWITCH_VERSION="${freeswitchVersion}" \
-  --build-arg BUILD_CPUS="4" \
   . --tag "${dockerImageRepo}:${dockerImageVersion}"
 
 # Optional: remove the builder after the build to clean up

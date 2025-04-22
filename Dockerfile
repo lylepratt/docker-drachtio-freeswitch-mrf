@@ -35,8 +35,7 @@ RUN for i in $(seq 1 8); do mkdir -p "/usr/share/man/man${i}"; done \
     gnupg2 wget pkg-config ca-certificates libjpeg-dev libsqlite3-dev libpcre3-dev libldns-dev libboost-all-dev \
     libspeex-dev libspeexdsp-dev libedit-dev libtiff6 yasm libswscale-dev haveged libre2-dev \
     libopus-dev libsndfile-dev libshout3-dev libmpg123-dev libmp3lame-dev libopusfile-dev libgoogle-perftools-dev \
-    \
-    libapr1-dev libpng-dev libpng16-16 libavutil-dev liba52-0.7.4-dev libtiff-dev \  # extra build deps
+    libapr1-dev libpng-dev libpng16-16 libavutil-dev liba52-0.7.4-dev libtiff-dev \
  && git config --global http.postBuffer 524288000 \
  && git config --global https.postBuffer 524288000 \
  && git config --global pull.rebase true
@@ -286,7 +285,7 @@ RUN apt-get update && apt-get install -y rsync \
 # runtime libs + tools we actually need
 RUN apt-get update && apt-get install -y --quiet --no-install-recommends \
       ca-certificates libsqlite3-0 libcurl4 libpcre3 libspeex1 libspeexdsp1 libedit2 libtiff6 libopus0 libsndfile1 libshout3 \
-      s3fs awscli rsyslog inotify-tools curl \
+      s3fs awscli rsyslog inotify-tools curl init-system-helpers \
  && ldconfig && rm -rf /var/lib/apt/lists/*
 
 # --- custom env + node toolchain ---
