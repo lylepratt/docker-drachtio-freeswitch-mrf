@@ -16,8 +16,8 @@ sofiaVersion=$(grep sofiaVersion .env | awk -F '=' '{print $2}')
 awsSdkCppVersion=$(grep awsSdkCppVersion .env | awk -F '=' '{print $2}')
 freeswitchModulesVersion=$(grep freeswitchModulesVersion .env | awk -F '=' '{print $2}')
 freeswitchVersion=$(grep freeswitchVersion .env | awk -F '=' '{print $2}')
-dockerImageRepo=$(grep dockerImageRepo .env | awk -F '=' '{print $2}')
-dockerImageVersion=$(grep dockerImageVersion .env | awk -F '=' '{print $2}')
+dockerImageRepo="vidaislive/drachtio-freeswitch"
+dockerImageVersion="latest"
 
 # Specify the image name and tag
 imageName="drachtio/drachtio-freeswitch-mrf"
