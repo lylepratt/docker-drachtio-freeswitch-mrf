@@ -192,7 +192,7 @@ RUN if [ "${TARGETARCH}" = "arm64" ]; then \
     else \
         export ONNXRUNTIME=onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}; \
     fi && \
-    wget https://github.com/microsoft/onnxruntime/releases/download/v1.23.1/${ONNXRUNTIME}.tgz; \
+    wget https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${ONNXRUNTIME}.tgz; \
     tar xvfz ${ONNXRUNTIME}.tgz && \
     cd ${ONNXRUNTIME} && \
     mkdir -p /usr/local/src/onnxruntime && \
