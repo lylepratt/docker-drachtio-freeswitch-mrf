@@ -173,7 +173,7 @@ RUN echo "Cloning aws-sdk-cpp" \
   && cd aws-sdk-cpp \
   && mkdir -p build && cd build \
   && echo "Running cmake on aws-sdk-cpp" \
-  && cmake .. -DBUILD_ONLY="s3;core;s3-crt;lexv2-runtime;transcribestreaming" \
+  && cmake .. -DBUILD_ONLY="s3;core;s3-crt;lexv2-runtime;transcribestreaming;polly" \
               -DCMAKE_BUILD_TYPE=RelWithDebInfo \
               -DBUILD_SHARED_LIBS=ON \
               -DCMAKE_C_FLAGS="-Wno-error" \
