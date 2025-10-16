@@ -36,7 +36,7 @@ RUN for i in $(seq 1 8); do mkdir -p "/usr/share/man/man${i}"; done \
     libev-dev libevent-dev libpcap-dev libxmlrpc-core-c3-dev markdown libjson-glib-dev lsb-release libpq-dev php-dev \
     libhiredis-dev gperf libspandsp-dev default-libmysqlclient-dev htop dnsutils gdb libtcmalloc-minimal4 \
     gnupg2 wget pkg-config ca-certificates libjpeg-dev libsqlite3-dev libpcre3-dev libldns-dev libboost-all-dev \
-    libspeex-dev libspeexdsp-dev libedit-dev libtiff6 yasm libswscale-dev haveged libre2-dev \
+    libspeex-dev libspeexdsp-dev libedit-dev libtiff6 yasm libswscale-dev haveged libre2-dev libonnx-dev \
     libopus-dev libsndfile-dev libshout3-dev libmpg123-dev libmp3lame-dev libopusfile-dev libgoogle-perftools-dev \
     libapr1-dev libpng-dev libpng16-16 libavutil-dev liba52-0.7.4-dev libtiff-dev onnxruntime \
  && git config --global http.postBuffer 524288000 \
