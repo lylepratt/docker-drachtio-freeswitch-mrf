@@ -223,8 +223,8 @@ COPY --from=speechsdk /usr/local/include/ /usr/local/include/
 COPY --from=speechsdk /usr/local/lib/ /usr/local/lib/
 COPY --from=websockets /usr/local/include/ /usr/local/include/
 COPY --from=websockets /usr/local/lib/ /usr/local/lib/
-COPY --from=onnxruntime /usr/local/src/onnxruntime/lib/ /usr/local/lib
-COPY --from=onnxruntime /usr/local/src/onnxruntime/include/ /usr/local/include/
+# COPY --from=onnxruntime /usr/local/src/onnxruntime/lib/ /usr/local/lib
+# COPY --from=onnxruntime /usr/local/src/onnxruntime/include/ /usr/local/include/
 # COPY --from=silero /usr/local/share/silero_vad/ /usr/local/share/silero_vad/
 WORKDIR /usr/local/src
 ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH:-}
