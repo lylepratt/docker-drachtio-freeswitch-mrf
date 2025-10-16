@@ -26,6 +26,7 @@ RUN echo "CMAKE_VERSION=$CMAKE_VERSION" \
 RUN for i in $(seq 1 8); do mkdir -p "/usr/share/man/man${i}"; done \
  && apt-get update \
  && apt-get -y --quiet --allow-remove-essential upgrade \
+ && add-apt-repository ppa:mateus-morais/onnxruntime \
  && apt-get install -y --quiet --no-install-recommends \
     python-is-python3 lsof gcc g++ make build-essential git autoconf automake default-mysql-client redis-tools \
     curl telnet libtool libtool-bin libssl-dev libcurl4-openssl-dev libz-dev liblz4-tool \
@@ -35,7 +36,7 @@ RUN for i in $(seq 1 8); do mkdir -p "/usr/share/man/man${i}"; done \
     gnupg2 wget pkg-config ca-certificates libjpeg-dev libsqlite3-dev libpcre3-dev libldns-dev libboost-all-dev \
     libspeex-dev libspeexdsp-dev libedit-dev libtiff6 yasm libswscale-dev haveged libre2-dev \
     libopus-dev libsndfile-dev libshout3-dev libmpg123-dev libmp3lame-dev libopusfile-dev libgoogle-perftools-dev \
-    libapr1-dev libpng-dev libpng16-16 libavutil-dev liba52-0.7.4-dev libtiff-dev \
+    libapr1-dev libpng-dev libpng16-16 libavutil-dev liba52-0.7.4-dev libtiff-dev onnxruntime \
  && git config --global http.postBuffer 524288000 \
  && git config --global https.postBuffer 524288000 \
  && git config --global pull.rebase true
