@@ -12,6 +12,7 @@ ARG SOFIA_VERSION
 ARG AWS_SDK_CPP_VERSION
 ARG FREESWITCH_MODULES_VERSION
 ARG FREESWITCH_VERSION
+ARG ONNXRUNTIME_VERSION
 
 RUN echo "CMAKE_VERSION=$CMAKE_VERSION" \
  && echo "GRPC_VERSION=$GRPC_VERSION" \
@@ -21,7 +22,8 @@ RUN echo "CMAKE_VERSION=$CMAKE_VERSION" \
  && echo "SOFIA_VERSION=$SOFIA_VERSION" \
  && echo "AWS_SDK_CPP_VERSION=$AWS_SDK_CPP_VERSION" \
  && echo "FREESWITCH_MODULES_VERSION=$FREESWITCH_MODULES_VERSION" \
- && echo "FREESWITCH_VERSION=$FREESWITCH_VERSION"
+ && echo "FREESWITCH_VERSION=$FREESWITCH_VERSION" \
+ && echo "ONNXRUNTIME_VERSION=$ONNXRUNTIME_VERSION"
 
 RUN for i in $(seq 1 8); do mkdir -p "/usr/share/man/man${i}"; done \
  && apt-get update \
@@ -30,10 +32,10 @@ RUN for i in $(seq 1 8); do mkdir -p "/usr/share/man/man${i}"; done \
     python-is-python3 lsof gcc g++ make build-essential git autoconf automake default-mysql-client redis-tools \
     curl telnet libtool libtool-bin libssl-dev libcurl4-openssl-dev libz-dev liblz4-tool \
     libxtables-dev libip6tc-dev libip4tc-dev libiptc-dev libavformat-dev liblua5.1-0-dev libavfilter-dev libavcodec-dev libswresample-dev \
-    libevent-dev libpcap-dev libxmlrpc-core-c3-dev markdown libjson-glib-dev lsb-release libpq-dev php-dev \
+    libev-dev libevent-dev libpcap-dev libxmlrpc-core-c3-dev markdown libjson-glib-dev lsb-release libpq-dev php-dev \
     libhiredis-dev gperf libspandsp-dev default-libmysqlclient-dev htop dnsutils gdb libtcmalloc-minimal4 \
     gnupg2 wget pkg-config ca-certificates libjpeg-dev libsqlite3-dev libpcre3-dev libldns-dev libboost-all-dev \
-    libspeex-dev libspeexdsp-dev libedit-dev libtiff6 yasm libswscale-dev haveged libre2-dev \
+    libspeex-dev libspeexdsp-dev libedit-dev libtiff6 yasm libswscale-dev haveged libre2-dev libonnx-dev \
     libopus-dev libsndfile-dev libshout3-dev libmpg123-dev libmp3lame-dev libopusfile-dev libgoogle-perftools-dev \
     libapr1-dev libpng-dev libpng16-16 libavutil-dev liba52-0.7.4-dev libtiff-dev \
  && git config --global http.postBuffer 524288000 \
@@ -173,7 +175,7 @@ RUN echo "Cloning aws-sdk-cpp" \
   && cd aws-sdk-cpp \
   && mkdir -p build && cd build \
   && echo "Running cmake on aws-sdk-cpp" \
-  && cmake .. -DBUILD_ONLY="s3;core;s3-crt;lexv2-runtime;transcribestreaming" \
+  && cmake .. -DBUILD_ONLY="s3;core;s3-crt;lexv2-runtime;transcribestreaming;polly" \
               -DCMAKE_BUILD_TYPE=RelWithDebInfo \
               -DBUILD_SHARED_LIBS=ON \
               -DCMAKE_C_FLAGS="-Wno-error" \
@@ -181,6 +183,26 @@ RUN echo "Cloning aws-sdk-cpp" \
   && make -j ${BUILD_CPUS} && make install \
   && mkdir -p /usr/local/lib/pkgconfig \
   && find /usr/local/src/aws-sdk-cpp/ -type f -name "*.pc" | xargs cp -t /usr/local/lib/pkgconfig/
+
+# FROM base AS onnxruntime
+# ARG TARGETARCH
+# WORKDIR /usr/local/src
+# RUN if [ "${TARGETARCH}" = "arm64" ]; then \
+#         export ONNXRUNTIME=onnxruntime-linux-aarch64-${ONNXRUNTIME_VERSION}; \
+#     else \
+#         export ONNXRUNTIME=onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}; \
+#     fi && \
+#     wget https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${ONNXRUNTIME}.tgz; \
+#     tar xvfz ${ONNXRUNTIME}.tgz && \
+#     cd ${ONNXRUNTIME} && \
+#     mkdir -p /usr/local/src/onnxruntime && \
+#     mv * /usr/local/src/onnxruntime && \
+#     ls -lrt /usr/local/src/onnxruntime
+# 
+# FROM base AS silero
+# WORKDIR /tmp
+# RUN mkdir -p wget /usr/local/share/silero_vad && \
+#     wget https://github.com/snakers4/silero-vad/raw/master/files/silero_vad.onnx -O /usr/local/share/silero_vad/silero_vad.onnx
 
 FROM base AS freeswitch
 ARG TARGETARCH
@@ -201,6 +223,9 @@ COPY --from=speechsdk /usr/local/include/ /usr/local/include/
 COPY --from=speechsdk /usr/local/lib/ /usr/local/lib/
 COPY --from=websockets /usr/local/include/ /usr/local/include/
 COPY --from=websockets /usr/local/lib/ /usr/local/lib/
+# COPY --from=onnxruntime /usr/local/src/onnxruntime/lib/ /usr/local/lib
+# COPY --from=onnxruntime /usr/local/src/onnxruntime/include/ /usr/local/include/
+# COPY --from=silero /usr/local/share/silero_vad/ /usr/local/share/silero_vad/
 WORKDIR /usr/local/src
 ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH:-}
 RUN git clone --depth 1 -b v$FREESWITCH_VERSION https://github.com/signalwire/freeswitch.git
@@ -284,7 +309,7 @@ RUN apt-get update && apt-get install -y rsync \
 
 # runtime libs + tools we actually need
 RUN apt-get update && apt-get install -y --quiet --no-install-recommends \
-      ca-certificates libsqlite3-0 libcurl4 libpcre3 libspeex1 libspeexdsp1 libedit2 libtiff6 libopus0 libsndfile1 libshout3 \
+      ca-certificates libsqlite3-0 libcurl4 libev4 libpcre3 libspeex1 libspeexdsp1 libedit2 libtiff6 libopus0 libsndfile1 libshout3 \
       s3fs awscli rsyslog inotify-tools curl init-system-helpers \
  && ldconfig && rm -rf /var/lib/apt/lists/*
 
