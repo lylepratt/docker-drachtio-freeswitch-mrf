@@ -39,7 +39,7 @@ RUN for i in $(seq 1 8); do mkdir -p "/usr/share/man/man${i}"; done \
  && git config --global http.postBuffer 524288000 \
  && git config --global https.postBuffer 524288000 \
  && git config --global pull.rebase true \
- && pip install onnxruntime
+ && pip3 install onnxruntime
 
 FROM base AS freeswitch-modules
 WORKDIR /tmp
