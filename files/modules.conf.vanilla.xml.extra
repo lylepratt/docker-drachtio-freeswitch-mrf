@@ -46,7 +46,7 @@
       <load module="mod_verbio_transcribe"/>
       <load module="mod_verbio_tts"/>
       <load module="mod_vad_detect"/>
-      <load module="mod_vad_silero"/>
+      <!-- <load module="mod_vad_silero"/> -->
       <load module="mod_voxist_transcribe"/>
 
       <!-- Loggers (I'd load these first) -->

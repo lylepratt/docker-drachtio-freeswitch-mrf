@@ -40,7 +40,7 @@ applications/mod_speechmatics_transcribe
 applications/mod_verbio_transcribe
 applications/mod_verbio_tts
 applications/mod_vad_detect
-applications/mod_vad_silero
+#applications/mod_vad_silero
 applications/mod_voxist_transcribe
 applications/mod_dialogflow
 #applications/mod_abstraction

@@ -184,25 +184,25 @@ RUN echo "Cloning aws-sdk-cpp" \
   && mkdir -p /usr/local/lib/pkgconfig \
   && find /usr/local/src/aws-sdk-cpp/ -type f -name "*.pc" | xargs cp -t /usr/local/lib/pkgconfig/
 
-FROM base AS onnxruntime
-ARG TARGETARCH
-WORKDIR /usr/local/src
-RUN if [ "${TARGETARCH}" = "arm64" ]; then \
-        export ONNXRUNTIME=onnxruntime-linux-aarch64-${ONNXRUNTIME_VERSION}; \
-    else \
-        export ONNXRUNTIME=onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}; \
-    fi && \
-    wget https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${ONNXRUNTIME}.tgz; \
-    tar xvfz ${ONNXRUNTIME}.tgz && \
-    cd ${ONNXRUNTIME} && \
-    mkdir -p /usr/local/src/onnxruntime && \
-    mv * /usr/local/src/onnxruntime && \
-    ls -lrt /usr/local/src/onnxruntime
-
-FROM base AS silero
-WORKDIR /tmp
-RUN mkdir -p wget /usr/local/share/silero_vad && \
-    wget https://github.com/snakers4/silero-vad/raw/master/files/silero_vad.onnx -O /usr/local/share/silero_vad/silero_vad.onnx
+# FROM base AS onnxruntime
+# ARG TARGETARCH
+# WORKDIR /usr/local/src
+# RUN if [ "${TARGETARCH}" = "arm64" ]; then \
+#         export ONNXRUNTIME=onnxruntime-linux-aarch64-${ONNXRUNTIME_VERSION}; \
+#     else \
+#         export ONNXRUNTIME=onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}; \
+#     fi && \
+#     wget https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${ONNXRUNTIME}.tgz; \
+#     tar xvfz ${ONNXRUNTIME}.tgz && \
+#     cd ${ONNXRUNTIME} && \
+#     mkdir -p /usr/local/src/onnxruntime && \
+#     mv * /usr/local/src/onnxruntime && \
+#     ls -lrt /usr/local/src/onnxruntime
+# 
+# FROM base AS silero
+# WORKDIR /tmp
+# RUN mkdir -p wget /usr/local/share/silero_vad && \
+#     wget https://github.com/snakers4/silero-vad/raw/master/files/silero_vad.onnx -O /usr/local/share/silero_vad/silero_vad.onnx
 
 FROM base AS freeswitch
 ARG TARGETARCH
@@ -225,7 +225,7 @@ COPY --from=websockets /usr/local/include/ /usr/local/include/
 COPY --from=websockets /usr/local/lib/ /usr/local/lib/
 COPY --from=onnxruntime /usr/local/src/onnxruntime/lib/ /usr/local/lib
 COPY --from=onnxruntime /usr/local/src/onnxruntime/include/ /usr/local/include/
-COPY --from=silero /usr/local/share/silero_vad/ /usr/local/share/silero_vad/
+# COPY --from=silero /usr/local/share/silero_vad/ /usr/local/share/silero_vad/
 WORKDIR /usr/local/src
 ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH:-}
 RUN git clone --depth 1 -b v$FREESWITCH_VERSION https://github.com/signalwire/freeswitch.git
