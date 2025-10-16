@@ -202,7 +202,7 @@ RUN if [ "${TARGETARCH}" = "arm64" ]; then \
 FROM base AS silero
 WORKDIR /tmp
 RUN mkdir -p wget /usr/local/share/silero_vad && \
-    https://github.com/snakers4/silero-vad/raw/master/files/silero_vad.onnx -O /usr/local/share/silero_vad/silero_vad.onnx
+    wget https://github.com/snakers4/silero-vad/raw/master/files/silero_vad.onnx -O /usr/local/share/silero_vad/silero_vad.onnx
 
 FROM base AS freeswitch
 ARG TARGETARCH
