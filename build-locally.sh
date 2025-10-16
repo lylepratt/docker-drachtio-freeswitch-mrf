@@ -18,6 +18,7 @@ freeswitchModulesVersion=$(grep freeswitchModulesVersion .env | awk -F '=' '{pri
 freeswitchVersion=$(grep freeswitchVersion .env | awk -F '=' '{print $2}')
 dockerImageRepo="vidaislive/drachtio-freeswitch"
 dockerImageVersion="latest"
+onnxruntimeVersion=$(grep onnxruntimeVersion .env | awk -F '=' '{print $2}')
 
 # Specify the image name and tag
 imageName="drachtio/drachtio-freeswitch-mrf"
@@ -41,6 +42,7 @@ docker buildx build \
   --build-arg AWS_SDK_CPP_VERSION="${awsSdkCppVersion}" \
   --build-arg FREESWITCH_MODULES_VERSION="${freeswitchModulesVersion}" \
   --build-arg FREESWITCH_VERSION="${freeswitchVersion}" \
+  --build-arg ONNXRUNTIME_VERSION="${onnxruntimeVersion}" \
   . --tag "${dockerImageRepo}:${dockerImageVersion}"
 
 # Optional: remove the builder after the build to clean up

@@ -12,6 +12,7 @@ ARG SOFIA_VERSION
 ARG AWS_SDK_CPP_VERSION
 ARG FREESWITCH_MODULES_VERSION
 ARG FREESWITCH_VERSION
+ARG ONNXRUNTIME_VERSION
 
 RUN echo "CMAKE_VERSION=$CMAKE_VERSION" \
  && echo "GRPC_VERSION=$GRPC_VERSION" \
@@ -21,7 +22,8 @@ RUN echo "CMAKE_VERSION=$CMAKE_VERSION" \
  && echo "SOFIA_VERSION=$SOFIA_VERSION" \
  && echo "AWS_SDK_CPP_VERSION=$AWS_SDK_CPP_VERSION" \
  && echo "FREESWITCH_MODULES_VERSION=$FREESWITCH_MODULES_VERSION" \
- && echo "FREESWITCH_VERSION=$FREESWITCH_VERSION"
+ && echo "FREESWITCH_VERSION=$FREESWITCH_VERSION" \
+ && echo "ONNXRUNTIME_VERSION=$ONNXRUNTIME_VERSION"
 
 RUN for i in $(seq 1 8); do mkdir -p "/usr/share/man/man${i}"; done \
  && apt-get update \
@@ -186,9 +188,9 @@ FROM base AS onnxruntime
 ARG TARGETARCH
 WORKDIR /usr/local/src
 RUN if [ "${TARGETARCH}" = "arm64" ]; then \
-        export ONNXRUNTIME=onnxruntime-linux-aarch64-1.23.1; \
+        export ONNXRUNTIME=onnxruntime-linux-aarch64-${ONNXRUNTIME_VERSION}; \
     else \
-        export ONNXRUNTIME=onnxruntime-linux-x64-1.23.1; \
+        export ONNXRUNTIME=onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}; \
     fi && \
     wget https://github.com/microsoft/onnxruntime/releases/download/v1.23.1/${ONNXRUNTIME}.tgz; \
     tar xvfz ${ONNXRUNTIME}.tgz && \
