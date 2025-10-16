@@ -199,6 +199,11 @@ RUN if [ "${TARGETARCH}" = "arm64" ]; then \
     mv * /usr/local/src/onnxruntime && \
     ls -lrt /usr/local/src/onnxruntime
 
+FROM base AS silero
+WORKDIR /tmp
+RUN mkdir -p wget /usr/local/share/silero_vad && \
+    https://github.com/snakers4/silero-vad/raw/master/files/silero_vad.onnx -O /usr/local/share/silero_vad/silero_vad.onnx
+
 FROM base AS freeswitch
 ARG TARGETARCH
 COPY ./files/ /tmp/
@@ -220,6 +225,7 @@ COPY --from=websockets /usr/local/include/ /usr/local/include/
 COPY --from=websockets /usr/local/lib/ /usr/local/lib/
 COPY --from=onnxruntime /usr/local/src/onnxruntime/lib/ /usr/local/lib
 COPY --from=onnxruntime /usr/local/src/onnxruntime/include/ /usr/local/include/
+COPY --from=silero /usr/local/share/silero_vad/ /usr/local/share/silero_vad/
 WORKDIR /usr/local/src
 ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH:-}
 RUN git clone --depth 1 -b v$FREESWITCH_VERSION https://github.com/signalwire/freeswitch.git

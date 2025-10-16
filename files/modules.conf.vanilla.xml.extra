@@ -31,7 +31,7 @@
       <load module="mod_inworld_tts"/>
       <load module="mod_nuance_transcribe"/>
       <load module="mod_nvidia_transcribe"/>
-      <load module="mod_nvidia_tts"/>
+      <!-- <load module="mod_nvidia_tts"/> -->
       <load module="mod_openai_s2s"/>
       <load module="mod_openai_transcribe"/>
       <load module="mod_ultravox_s2s"/>
