@@ -182,6 +182,21 @@ RUN echo "Cloning aws-sdk-cpp" \
   && mkdir -p /usr/local/lib/pkgconfig \
   && find /usr/local/src/aws-sdk-cpp/ -type f -name "*.pc" | xargs cp -t /usr/local/lib/pkgconfig/
 
+FROM base AS onnxruntime
+ARG TARGETARCH
+WORKDIR /usr/local/src
+RUN if [ "${TARGETARCH}" = "arm64" ]; then \
+        export ONNXRUNTIME=onnxruntime-linux-aarch64-1.23.1.tgz; \
+    else \
+        export ONNXRUNTIME=onnxruntime-linux-x64-1.23.1.tgz; \
+    fi && \
+    wget https://github.com/microsoft/onnxruntime/releases/download/v1.23.1/\${ONNXRUNTIME}; \
+    tar xvfz \${ONNXRUNTIME} && \
+    cd \${ONNXRUNTIME} && \
+    mkdir -p /usr/local/src/onnxruntime && \
+    mv * /usr/local/src/onnxruntime && \
+    ls -lrt /usr/local/src/onnxruntime
+
 FROM base AS freeswitch
 ARG TARGETARCH
 COPY ./files/ /tmp/
@@ -201,6 +216,8 @@ COPY --from=speechsdk /usr/local/include/ /usr/local/include/
 COPY --from=speechsdk /usr/local/lib/ /usr/local/lib/
 COPY --from=websockets /usr/local/include/ /usr/local/include/
 COPY --from=websockets /usr/local/lib/ /usr/local/lib/
+COPY --from=onnxruntime /usr/local/src/onnxruntime/lib/ /usr/local/lib
+COPY --from=onnxruntime /usr/local/src/onnxruntime/include/ /usr/local/include/
 WORKDIR /usr/local/src
 ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH:-}
 RUN git clone --depth 1 -b v$FREESWITCH_VERSION https://github.com/signalwire/freeswitch.git
