@@ -186,11 +186,11 @@ FROM base AS onnxruntime
 ARG TARGETARCH
 WORKDIR /usr/local/src
 RUN if [ "${TARGETARCH}" = "arm64" ]; then \
-        export ONNXRUNTIME=onnxruntime-linux-aarch64-1.23.1.tgz; \
+        export ONNXRUNTIME=onnxruntime-linux-aarch64-1.23.1; \
     else \
-        export ONNXRUNTIME=onnxruntime-linux-x64-1.23.1.tgz; \
+        export ONNXRUNTIME=onnxruntime-linux-x64-1.23.1; \
     fi && \
-    wget https://github.com/microsoft/onnxruntime/releases/download/v1.23.1/${ONNXRUNTIME}; \
+    wget https://github.com/microsoft/onnxruntime/releases/download/v1.23.1/${ONNXRUNTIME}.tgz; \
     tar xvfz ${ONNXRUNTIME} && \
     cd ${ONNXRUNTIME} && \
     mkdir -p /usr/local/src/onnxruntime && \
