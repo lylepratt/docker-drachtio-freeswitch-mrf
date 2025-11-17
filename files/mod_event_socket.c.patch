@@ -1,32 +1,47 @@
---- mod_event_socket.c	2024-10-12 16:31:07
-+++ mod_event_socket.c.new	2024-12-05 12:30:55
-@@ -31,6 +31,10 @@
+--- mod_event_socket.c	2025-03-28 11:40:35
++++ mod_event_socket.c.new	2025-05-07 19:35:47
+@@ -31,6 +31,12 @@
   *
   */
  #include <switch.h>
 +
 +/* DH: for regex */
 +#include <regex.h>
++#include <pthread.h>
++
 +
  #define CMD_BUFLEN 1024 * 1000
  #define MAX_QUEUE_LEN 100000
  #define MAX_MISSED 500
-@@ -40,6 +44,8 @@
+@@ -40,6 +46,9 @@
  SWITCH_MODULE_DEFINITION(mod_event_socket, mod_event_socket_load, mod_event_socket_shutdown, mod_event_socket_runtime);
  
  static char *MARKER = "1";
 +static regex_t regex;
 +static int regex_is_compiled = 0;
++static pthread_mutex_t regex_mutex = PTHREAD_MUTEX_INITIALIZER;
  
  typedef enum {
  	LFLAG_AUTHED = (1 << 0),
-@@ -167,6 +173,39 @@
+@@ -166,7 +175,42 @@
+ 
  static void *SWITCH_THREAD_FUNC listener_run(switch_thread_t *thread, void *obj);
  static switch_status_t launch_listener_thread(listener_t *listener);
- 
++
 +/* DH: added to avoid removing carriage returns on tts streaming commands */
 +static int is_match_uuid_tts_streaming(const char *input) {
 +  int reti;
++  int match = 0;
++    
++  if (strncmp(input, "uuid_openai_s2s", 15) == 0 ||
++      strncmp(input, "uuid_elevenlabs_s2s", 19) == 0 ||
++      strncmp(input, "uuid_voice_agent_s2s", 20) == 0 ||
++      strncmp(input, "uuid_ultravox_s2s", 17) == 0 ||
++      strncmp(input, "uuid_openai_transcribe", 22) == 0
++      ) {
++    return 1;
++  }
++  pthread_mutex_lock(&regex_mutex);
 +
 +  // Compile the regex only once
 +  if (!regex_is_compiled) {
@@ -37,35 +52,26 @@
 +      }
 +      regex_is_compiled = 1;
 +  }
-+
-+  if (strncmp(input, "uuid_openai_s2s", 15) == 0) {
-+    return 1;
-+  }
+ 
 +  // Execute the regex match
 +  reti = regexec(&regex, input, 0, NULL, 0);
++  match = (reti == 0);
++    
++  pthread_mutex_unlock(&regex_mutex);
 +
-+  // Check match result
-+  if (reti == 0) {
-+      return 1; // Match found
-+  } else if (reti == REG_NOMATCH) {
-+      return 0; // No match
-+  } else {
-+      char error_msg[256];
-+      regerror(reti, &regex, error_msg, sizeof(error_msg));
-+      switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "Regex match failed: %s\n", error_msg);
-+      return 0;
-+  }
++  return match;
 +}
++
 +
  static switch_status_t socket_logger(const switch_log_node_t *node, switch_log_level_t level)
  {
  	listener_t *l;
-@@ -2283,7 +2322,9 @@
+@@ -2283,7 +2327,9 @@
  
  		char *api_cmd = cmd + 4;
  		char *arg = NULL;
 -		strip_cr(api_cmd);
-+    
++  
 +    /* DH: dont remove carriage returns on tts streaming commands */
 +    if (!is_match_uuid_tts_streaming(api_cmd)) strip_cr(api_cmd);
  

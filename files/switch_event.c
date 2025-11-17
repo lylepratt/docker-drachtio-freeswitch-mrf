@@ -1812,7 +1812,7 @@ SWITCH_DECLARE(switch_status_t) switch_event_create_json(switch_event_t **event,
 	return SWITCH_STATUS_SUCCESS;
 }
 
-/* DH: it's critical this is kep in sorted ASCII order */
+/* DH: it's critical this is kept in sorted ASCII order */
 static const char* limitedEvents[] = {
   "CHANNEL_EXECUTE",
   "CHANNEL_EXECUTE_COMPLETE",
@@ -1821,7 +1821,7 @@ static const char* limitedEvents[] = {
 };
 static int limitedEventsCount = sizeof(limitedEvents) / sizeof(char *);
 
-/* DH: it's critical this is kep in sorted ASCII order (note uppercase sorts before lowercase)*/
+/* DH: it's critical this is kept in sorted ASCII order (note uppercase sorts before lowercase)*/
 static const char* limitedHeaders[] = {
   "Action",
   "Channel-Call-UUID",

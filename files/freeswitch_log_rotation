@@ -10,12 +10,12 @@
 NUMBERDAYS=5
 FSPATH=/usr/local/freeswitch/
 
-$FSPATH/bin/fs_cli -x "fsctl send_sighup" |grep '+OK' >/tmp/rotateFSlogs
+$FSPATH/bin/fs_cli -p JambonzR0ck$ -x "fsctl send_sighup" |grep '+OK' >/tmp/rotateFSlogs
 if [ $? -eq 0 ]; then
        #-cmin 2 could bite us (leave some files uncompressed, eg 11M auto-rotate). Maybe -1440 is better?
        find $FSPATH/log/ -name "freeswitch.log.*" -cmin -2 -exec gzip {} \;
        find $FSPATH/log/ -name "freeswitch.log.*.gz" -mtime +$NUMBERDAYS -exec /bin/rm {} \;
-       chown www-data.www-data $FSPATH/log/freeswitch.log
+       chown www-data:www-data $FSPATH/log/freeswitch.log
        chmod 660 $FSPATH/log/freeswitch.log
        logger FreeSWITCH Logs rotated
        /bin/rm /tmp/rotateFSlogs

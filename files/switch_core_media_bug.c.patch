@@ -1,5 +1,5 @@
---- switch_core_media_bug.c	2024-10-12 16:31:07
-+++ switch_core_media_bug.c.new	2024-10-12 16:30:02
+--- switch_core_media_bug.c	2025-05-15 14:34:26
++++ switch_core_media_bug.c.new	2025-05-15 14:37:01
 @@ -799,7 +799,7 @@
  														  switch_media_bug_flag_t flags,
  														  switch_media_bug_t **new_bug)
@@ -9,7 +9,7 @@
  	switch_size_t bytes;
  	switch_event_t *event;
  	int tap_only = 1, punt = 0, added = 0;
-@@ -976,28 +976,39 @@
+@@ -976,28 +976,47 @@
  	switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "Attaching BUG to %s\n", switch_channel_get_name(session->channel));
  	switch_thread_rwlock_wrlock(session->bug_rwlock);
  
@@ -30,6 +30,14 @@
 +    bug->next = session->bugs;
 +    session->bugs = bug;
 +    added = 1;
++  } else if (!added && switch_test_flag(bug, SMBF_LAST_LAST)) {
++    for (bp = session->bugs; bp && bp->next; bp = bp->next) {
++      // Just find the last node
++    }
++    // Append at the end
++    bp->next = bug;
++    bug->next = NULL;
++    added = 1;
 +  }
  
 -	for(bp = session->bugs; bp; bp = bp->next) {
@@ -49,7 +57,7 @@
 -	}
 -
 +    if (!added) {
-+      if (switch_test_flag(bp, SMBF_LAST)) {
++      if (switch_test_flag(bp, SMBF_LAST) || switch_test_flag(bp, SMBF_LAST_LAST)) {
 +        bug->next = bp;
 +        if (previous) {
 +          previous->next = bug;
@@ -69,8 +77,18 @@
  	switch_thread_rwlock_unlock(session->bug_rwlock);
  	*new_bug = bug;
  
-@@ -1488,3 +1499,4 @@
-  * For VIM:
-  * vim:set softtabstop=4 shiftwidth=4 tabstop=4 noet:
-  */
-+
+@@ -1477,14 +1496,3 @@
+ 
+ 	return total ? SWITCH_STATUS_SUCCESS : SWITCH_STATUS_FALSE;
+ }
+-
+-/* For Emacs:
+- * Local Variables:
+- * mode:c
+- * indent-tabs-mode:t
+- * tab-width:4
+- * c-basic-offset:4
+- * End:
+- * For VIM:
+- * vim:set softtabstop=4 shiftwidth=4 tabstop=4 noet:
+- */

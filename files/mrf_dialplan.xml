@@ -10,6 +10,7 @@
         <action application="set" data="hangup_after_bridge=false"/>
         <action application="set" data="park_after_bridge=true"/>
         <action application="set" data="playback_terminators=none"/>
+        <action application="set" data="JAMBONZ_CALL_SID=${sip_h_X-Call-Sid}"/>
         <action application="socket" data="${sip_h_X-esl-outbound} async full"/>
       </condition>
     </extension>

@@ -187,6 +187,11 @@ CORE_CFLAGS += -DSWITCH_HAVE_GRPC
 GRPC_LIBS += -lgrpc++_reflection -lprotobuf
 endif
 
+# Custom Jambonz logging
+if USE_JAMBONZ_LOGGING
+CORE_CFLAGS += -DUSE_JAMBONZ_LOGGING
+endif
+
 ##
 ## libfreeswitch
 ##
@@ -424,11 +429,13 @@ NVIDIA_GENS_PATH = libs/riva-asr-grpc-api/stubs/
 
 nodist_libfreeswitch_libnvidiaapis_la_SOURCES = \
 libs/riva-asr-grpc-api/stubs/riva/proto/riva_asr.pb.cc \
-libs/riva-asr-grpc-api/stubs/riva/proto/riva_audio.pb.cc \
-libs/riva-asr-grpc-api/stubs/riva/proto/riva_common.pb.cc \
 libs/riva-asr-grpc-api/stubs/riva/proto/riva_asr.grpc.pb.cc \
+libs/riva-asr-grpc-api/stubs/riva/proto/riva_audio.pb.cc \
 libs/riva-asr-grpc-api/stubs/riva/proto/riva_audio.grpc.pb.cc \
-libs/riva-asr-grpc-api/stubs/riva/proto/riva_common.grpc.pb.cc
+libs/riva-asr-grpc-api/stubs/riva/proto/riva_common.pb.cc \
+libs/riva-asr-grpc-api/stubs/riva/proto/riva_common.grpc.pb.cc \
+libs/riva-asr-grpc-api/stubs/riva/proto/riva_tts.pb.cc \
+libs/riva-asr-grpc-api/stubs/riva/proto/riva_tts.grpc.pb.cc 
 
 libfreeswitch_libnvidiaapis_la_CPPFLAGS = -I/usr/local/include -I$(NVIDIA_GENS_PATH) -std=c++17  -pthread
 

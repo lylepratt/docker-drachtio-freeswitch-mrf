@@ -12,6 +12,7 @@ ARG SOFIA_VERSION
 ARG AWS_SDK_CPP_VERSION
 ARG FREESWITCH_MODULES_VERSION
 ARG FREESWITCH_VERSION
+ARG ONNXRUNTIME_VERSION
 
 RUN echo "CMAKE_VERSION=$CMAKE_VERSION" \
  && echo "GRPC_VERSION=$GRPC_VERSION" \
@@ -21,13 +22,14 @@ RUN echo "CMAKE_VERSION=$CMAKE_VERSION" \
  && echo "SOFIA_VERSION=$SOFIA_VERSION" \
  && echo "AWS_SDK_CPP_VERSION=$AWS_SDK_CPP_VERSION" \
  && echo "FREESWITCH_MODULES_VERSION=$FREESWITCH_MODULES_VERSION" \
- && echo "FREESWITCH_VERSION=$FREESWITCH_VERSION"
+ && echo "FREESWITCH_VERSION=$FREESWITCH_VERSION" \
+ && echo "ONNXRUNTIME_VERSION=$ONNXRUNTIME_VERSION"
 
 RUN for i in $(seq 1 8); do mkdir -p "/usr/share/man/man${i}"; done \
  && apt-get update \
  && apt-get -y --quiet --allow-remove-essential upgrade \
  && apt-get install -y --quiet --no-install-recommends \
-    python-is-python3 lsof gcc g++ make build-essential git autoconf automake default-mysql-client redis-tools \
+    python-is-python3 lsof gcc g++ make build-essential git libev-dev autoconf automake default-mysql-client redis-tools \
     curl telnet libtool libtool-bin libssl-dev libcurl4-openssl-dev libz-dev liblz4-tool \
     libxtables-dev libip6tc-dev libip4tc-dev libiptc-dev libavformat-dev liblua5.1-0-dev libavfilter-dev libavcodec-dev libswresample-dev \
     libevent-dev libpcap-dev libxmlrpc-core-c3-dev markdown libjson-glib-dev lsb-release libpq-dev php-dev \
@@ -126,7 +128,7 @@ RUN git clone --depth 1 -b $LIBWEBSOCKETS_VERSION https://github.com/warmcat/lib
     && cp /tmp/ops-ws.c.patch . \
     && patch ops-ws.c < ops-ws.c.patch \
     && cd /usr/local/src/libwebsockets \
-    && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLWS_WITH_NETLINK=OFF && make && make install
+    && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLWS_WITH_NETLINK=OFF -DLWS_WITH_LIBEV=1 && make && make install
 
 FROM base AS speechsdk
 ARG TARGETARCH
@@ -165,6 +167,26 @@ RUN git clone --depth 1 https://github.com/dpirch/libfvad.git \
     && cd libfvad \
     && autoreconf -i && ./configure && make -j ${BUILD_CPUS} && make install
 
+FROM base AS onnxruntime
+ARG TARGETARCH
+ARG ONNXRUNTIME_VERSION
+WORKDIR /tmp
+RUN set -eux; \
+        case "$TARGETARCH" in \
+            arm64) ONNX_PACKAGE="onnxruntime-linux-aarch64-${ONNXRUNTIME_VERSION}.tgz" ;; \
+            amd64) ONNX_PACKAGE="onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz" ;; \
+            *) echo "Unsupported architecture for ONNX Runtime: ${TARGETARCH}" >&2; exit 1 ;; \
+        esac; \
+        wget -q https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${ONNX_PACKAGE}; \
+        tar xzf "${ONNX_PACKAGE}"; \
+        ONNX_DIR="${ONNX_PACKAGE%.tgz}"; \
+        cd "${ONNX_DIR}"; \
+        cp -r include/* /usr/local/include/; \
+        cp -r lib/* /usr/local/lib/; \
+        ldconfig; \
+        cd /tmp; \
+        rm -rf "${ONNX_PACKAGE}" "${ONNX_DIR}"
+
 FROM base-cmake AS aws-sdk
 WORKDIR /usr/local/src
 ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH:-}
@@ -173,7 +195,7 @@ RUN echo "Cloning aws-sdk-cpp" \
   && cd aws-sdk-cpp \
   && mkdir -p build && cd build \
   && echo "Running cmake on aws-sdk-cpp" \
-  && cmake .. -DBUILD_ONLY="s3;core;s3-crt;lexv2-runtime;transcribestreaming" \
+  && cmake .. -DBUILD_ONLY="s3;core;s3-crt;lexv2-runtime;transcribestreaming;monitoring;polly" \
               -DCMAKE_BUILD_TYPE=RelWithDebInfo \
               -DBUILD_SHARED_LIBS=ON \
               -DCMAKE_C_FLAGS="-Wno-error" \
@@ -191,6 +213,8 @@ COPY --from=grpc /usr/local/include/ /usr/local/include/
 COPY --from=grpc /usr/local/lib/ /usr/local/lib/
 COPY --from=libfvad /usr/local/include/ /usr/local/include/
 COPY --from=libfvad /usr/local/lib/ /usr/local/lib/
+COPY --from=onnxruntime /usr/local/include/ /usr/local/include/
+COPY --from=onnxruntime /usr/local/lib/ /usr/local/lib/
 COPY --from=sofia-sip /usr/local/bin/ /usr/local/bin/
 COPY --from=sofia-sip /usr/local/include/ /usr/local/include/
 COPY --from=sofia-sip /usr/local/lib/ /usr/local/lib/

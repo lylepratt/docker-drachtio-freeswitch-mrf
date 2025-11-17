@@ -57,7 +57,7 @@
                 <param name="inbound_channel" value="1"/>
     
                 <!-- define/undefine to enable/disable avmd on external channel -->
-                <param name="outbound_channel" value="0"/>
+                <param name="outbound_channel" value="1"/>
     
                 <!-- determines the mode of detection, default is both amplitude and frequency -->
                 <param name="detection_mode" value="2"/>
