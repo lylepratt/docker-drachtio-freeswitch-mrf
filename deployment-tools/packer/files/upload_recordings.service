@@ -1,0 +1,37 @@
+[Unit]
+Description=Upload Recordings Service
+After=network.target
+
+[Service]
+Environment="LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64"
+Environment="MYSQL_HOST="
+Environment="MYSQL_USER="
+Environment="MYSQL_PASSWORD="
+Environment="MYSQL_DATABASE="
+Environment="BASIC_AUTH_USERNAME="
+Environment="BASIC_AUTH_PASSWORD="
+Environment="ENCRYPTION_SECRET="
+ExecStart=/usr/local/bin/upload_recordings --port 3017 \
+--threads 16 \
+--aws-max-connections 150 \
+--buffer-process-size 128 \
+--max-buffer-size 8 
+Restart=always
+User=root
+Group=daemon
+LimitCORE=infinity
+LimitNOFILE=100000
+LimitNPROC=60000
+;LimitSTACK=240
+;LimitRTPRIO=infinity
+;LimitRTTIME=7000000
+;IOSchedulingClass=realtime
+;IOSchedulingPriority=2
+;CPUSchedulingPolicy=rr
+;CPUSchedulingPriority=89
+UMask=0007
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

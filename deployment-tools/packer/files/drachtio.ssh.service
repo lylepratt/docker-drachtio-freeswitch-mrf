@@ -1,0 +1,32 @@
+[Unit]
+Description=drachtio
+After=syslog.target network.target local-fs.target
+
+[Service]
+; service
+Type=forking
+ExecStartPre=/bin/bash -c 'systemctl set-environment LOCAL_IP=`hostname -I | awk \'{print $1}\'`'
+ExecStartPre=/bin/bash -c 'systemctl set-environment PUBLIC_IP=`curl -s https://api.ipify.org`'
+ExecStart=/usr/local/bin/drachtio --daemon \
+--contact sip:${LOCAL_IP};transport=udp --external-ip ${PUBLIC_IP} \
+--contact sip:${LOCAL_IP};transport=tcp --external-ip ${PUBLIC_IP} \
+ --address 0.0.0.0 --port 9022
+TimeoutSec=15s
+Restart=always
+; exec
+User=root
+Group=daemon
+LimitCORE=infinity
+LimitNOFILE=100000
+LimitNPROC=60000
+;LimitSTACK=240
+LimitRTPRIO=infinity
+LimitRTTIME=7000000
+IOSchedulingClass=realtime
+IOSchedulingPriority=2
+CPUSchedulingPolicy=rr
+CPUSchedulingPriority=89
+UMask=0007
+
+[Install]
+WantedBy=multi-user.target

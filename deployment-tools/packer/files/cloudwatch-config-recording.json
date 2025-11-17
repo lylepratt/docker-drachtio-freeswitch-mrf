@@ -1,0 +1,19 @@
+{
+  "agent": {
+    "run_as_user": "root"
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/opt/aws/amazon-cloudwatch-agent/bin/upload_recordings.log",
+            "log_group_name": "jambonz-upload-recordings",
+            "log_stream_name": "upload-recordings-{ip_address} {instance_id}",
+            "retention_in_days": 3
+          }
+        ]
+      }
+    }
+  }
+}

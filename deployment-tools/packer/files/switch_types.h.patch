@@ -1,0 +1,13 @@
+--- switch_types.h	2024-01-19 19:28:49
++++ switch_types.h.new	2025-05-16 10:41:58
+@@ -1907,7 +1907,9 @@
+ 	SMBF_READ_VIDEO_PATCH = (1 << 24),
+ 	SMBF_READ_TEXT_STREAM = (1 << 25),
+ 	SMBF_FIRST = (1 << 26),
+-	SMBF_PAUSE = (1 << 27)
++	SMBF_PAUSE = (1 << 27),
++        SMBF_LAST = (1 << 28),
++        SMBF_LAST_LAST = (1 << 29)
+ } switch_media_bug_flag_enum_t;
+ typedef uint32_t switch_media_bug_flag_t;
+ 

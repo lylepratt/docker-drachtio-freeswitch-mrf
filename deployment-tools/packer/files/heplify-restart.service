@@ -1,0 +1,12 @@
+[Unit]
+Description=Restart Heplify Server After Startup
+After=multi-user.target
+Wants=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/restart-heplify-server.sh
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
