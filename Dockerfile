@@ -1,5 +1,9 @@
 ARG DISTRO_IMAGE=debian:12
+
 FROM ${DISTRO_IMAGE} AS builder
+
+# Needed to use Docker buildx automatic argument
+ARG TARGETARCH
 
 # Copy the necessary Packer files and scripts.
 COPY deployment-tools/packer/files/* /tmp/
@@ -12,7 +16,8 @@ RUN set -ex; \
     # Prepare the build environment.
     apt-get update; \
     apt-get upgrade -y; \
-    apt-get install -y automake \
+    apt-get install -y \
+                       automake \
                        build-essential \
                        ca-certificates \
                        curl \
@@ -56,7 +61,7 @@ RUN set -ex; \
                        libtool-bin \
                        libxmlrpc-core-c3-dev \
                        libxtables-dev \
-                       libz-dev \
+                       zlib1g-dev \
                        make \
                        markdown \
                        php-dev \
@@ -71,28 +76,42 @@ RUN set -ex; \
     chmod +x /tmp/install_freeswitch.sh; \
     # Build and install FreeSWITCH.
     bash /tmp/install_autoconf.sh fs; \
-    bash /tmp/install_cmake.sh fs debian-12 arm64; \
-    bash /tmp/install_freeswitch.sh fs debian-12 PCMU,PCMA,G722,OPUS media-gateway arm64; \
+    if [ "$TARGETARCH" = "arm64" ]; then \
+      bash /tmp/install_cmake.sh fs debian-12 arm64; \
+      bash /tmp/install_freeswitch.sh fs debian-12 PCMU,PCMA,G722,OPUS media-gateway arm64; \
+    elif [ "$TARGETARCH" = "amd64" ]; then \
+      bash /tmp/install_cmake.sh fs debian-12 amd64; \
+      bash /tmp/install_freeswitch.sh fs debian-12 PCMU,PCMA,G722,OPUS media-gateway amd64; \
+    fi; \
     # Re-build the /etc/ld.so.cache with all the new libraries included.
-    ldconfig;
+    ldconfig
 
 FROM ${DISTRO_IMAGE} AS final
+
+# Needed in this stage as well
+ARG TARGETARCH
 
 COPY --from=builder /usr/local/freeswitch/ /usr/local/freeswitch/
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY --from=builder /usr/local/lib/ /usr/local/lib/
 
-# bring in arch‑specific libs
-RUN apt-get update && apt-get install -y rsync \
- && if [ "$TARGETARCH" = "arm64" ]; then \
+# bring in arch-specific libs
+RUN set -ex; \
+    apt-get update; \
+    apt-get install -y rsync; \
+    if [ "$TARGETARCH" = "arm64" ]; then \
       rsync -a --ignore-existing /usr/lib/aarch64-linux-gnu/ /usr/lib/; \
     elif [ "$TARGETARCH" = "amd64" ]; then \
       rsync -a --ignore-existing /usr/lib/x86_64-linux-gnu/ /usr/lib/; \
-    fi \
- && apt-get remove --purge -y rsync && apt-get autoremove -y && apt-get autoclean -y
+    fi; \
+    apt-get remove --purge -y rsync; \
+    apt-get autoremove -y; \
+    apt-get autoclean -y; \
+    rm -rf /var/lib/apt/lists/*
 
 # runtime libs + tools we actually need
-RUN apt-get update; \
+RUN set -ex; \
+    apt-get update; \
     apt-get upgrade -y; \
     apt-get install -y --quiet --no-install-recommends \
         awscli \
@@ -113,7 +132,8 @@ RUN apt-get update; \
         libtiff6 \
         rsyslog \
         s3fs; \
-    ldconfig && rm -rf /var/lib/apt/lists/*;
+    ldconfig; \
+    rm -rf /var/lib/apt/lists/*
 
 COPY files/freeswitch.xml /usr/local/freeswitch/conf/freeswitch.xml
 COPY files/vars_diff.xml /usr/local/freeswitch/conf/vars_diff.xml
@@ -124,24 +144,27 @@ COPY files/sip_profiles/* /usr/local/freeswitch/conf/sip_profiles/
 ENV COPY_POINT=/var/pres3fs
 ENV NODE_VERSION=18
 ENV NVM_DIR=/root/.nvm
-ENV NODE_PATH=/root/.nvm/versions/node/v${NODE_VERSION}/lib/node_modules
-ENV PATH="/usr/local/freeswitch/bin:${PATH}"
+
+# Make sure FreeSWITCH and Node are on PATH at runtime
+ENV NODE_PATH=${NVM_DIR}/versions/node/v${NODE_VERSION}/lib/node_modules
+ENV PATH="/usr/local/freeswitch/bin:${NVM_DIR}/versions/node/v${NODE_VERSION}/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/usr/local/lib"
 
 RUN mkdir -p "$COPY_POINT"
 
-RUN bash -c "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash; \
- . \"$NVM_DIR/nvm.sh\"; \
- nvm install ${NODE_VERSION}; \
- nvm use ${NODE_VERSION}; \
- nvm alias default ${NODE_VERSION}; \
- node --version && npm --version; \
- npm install -g axios@^1.5.0";
+RUN bash -c "set -ex; \
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash; \
+  . \"$NVM_DIR/nvm.sh\"; \
+  nvm install ${NODE_VERSION}; \
+  nvm use ${NODE_VERSION}; \
+  nvm alias default ${NODE_VERSION}; \
+  node --version && npm --version; \
+  npm install -g axios@^1.5.0"
 
- # custom monitoring script
+# custom monitoring script
 COPY files/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY files/monitorPres3fs.sh /usr/local/bin/monitorPres3fs.sh
-RUN chmod +x /usr/local/bin/monitorPres3fs.sh && chmod +x /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/monitorPres3fs.sh /usr/local/bin/entrypoint.sh
 
 VOLUME ["/usr/local/freeswitch/log", "/usr/local/freeswitch/recordings", "/usr/local/freeswitch/sounds"]
 
