@@ -21,8 +21,12 @@ RUN set -ex; \
                        build-essential \
                        ca-certificates \
                        curl \
+                       default-libmysqlclient-dev \
+                       default-mysql-client \
+                       dnsutils \
                        git \
                        gnupg2 \
+                       haveged \
                        liba52-0.7.4-dev \
                        libapr1-dev \
                        libasound2-dev \
@@ -33,8 +37,16 @@ RUN set -ex; \
                        libcurl4-openssl-dev \
                        libedit-dev \
                        libev-dev \
+                       libevent-dev \
+                       libgoogle-perftools-dev \
+                       libhiredis-dev \
+                       libip4tc-dev \
+                       libip6tc-dev \
+                       libiptc-dev \
                        libjpeg-dev \
                        libjson-glib-dev \
+                       libldns-dev \
+                       liblz4-tool \
                        liblua5.1-0-dev \
                        libmp3lame-dev \
                        libmpg123-dev \
@@ -55,17 +67,22 @@ RUN set -ex; \
                        libssl-dev \
                        libswresample-dev \
                        libswscale-dev \
+                       libtcmalloc-minimal4 \
                        libtiff-dev \
                        libtiff6 \
                        libtool \
                        libtool-bin \
                        libxmlrpc-core-c3-dev \
                        libxtables-dev \
+                       lsb-release \
+                       lsof \
                        zlib1g-dev \
                        make \
                        markdown \
                        php-dev \
                        pkg-config \
+                       redis-tools \
+                       wget \
                        sudo \
                        uuid-dev \
                        wget \
