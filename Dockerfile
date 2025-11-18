@@ -95,20 +95,6 @@ COPY --from=builder /usr/local/freeswitch/ /usr/local/freeswitch/
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY --from=builder /usr/local/lib/ /usr/local/lib/
 
-# bring in arch-specific libs
-RUN set -ex; \
-    apt-get update; \
-    apt-get install -y rsync; \
-    if [ "$TARGETARCH" = "arm64" ]; then \
-      rsync -a --ignore-existing /usr/lib/aarch64-linux-gnu/ /usr/lib/; \
-    elif [ "$TARGETARCH" = "amd64" ]; then \
-      rsync -a --ignore-existing /usr/lib/x86_64-linux-gnu/ /usr/lib/; \
-    fi; \
-    apt-get remove --purge -y rsync; \
-    apt-get autoremove -y; \
-    apt-get autoclean -y; \
-    rm -rf /var/lib/apt/lists/*
-
 # runtime libs + tools we actually need
 RUN set -ex; \
     apt-get update; \
