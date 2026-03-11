@@ -7,8 +7,6 @@ ARG TARGETARCH
 
 # Copy the necessary Packer files and scripts.
 COPY deployment-tools/packer/files/* /tmp/
-COPY deployment-tools/packer/scripts/install_autoconf.sh /tmp/install_autoconf.sh
-COPY deployment-tools/packer/scripts/install_cmake.sh /tmp/install_cmake.sh
 COPY deployment-tools/packer/scripts/install_freeswitch.sh /tmp/install_freeswitch.sh
 
 # Install FreeSWITCH.
@@ -17,9 +15,11 @@ RUN set -ex; \
     apt-get update; \
     apt-get upgrade -y; \
     apt-get install -y \
+                       autoconf \
                        automake \
                        build-essential \
                        ca-certificates \
+                       cmake \
                        curl \
                        default-libmysqlclient-dev \
                        default-mysql-client \
@@ -81,23 +81,18 @@ RUN set -ex; \
                        markdown \
                        php-dev \
                        pkg-config \
-                       redis-tools \
                        wget \
                        sudo \
                        uuid-dev \
                        wget \
                        yasm; \
     # Set the executable flag for Dave's install scripts.
-    chmod +x /tmp/install_autoconf.sh; \
-    chmod +x /tmp/install_cmake.sh; \
     chmod +x /tmp/install_freeswitch.sh; \
     # Build and install FreeSWITCH.
     bash /tmp/install_autoconf.sh fs; \
     if [ "$TARGETARCH" = "arm64" ]; then \
-      bash /tmp/install_cmake.sh fs debian-12 arm64; \
       bash /tmp/install_freeswitch.sh fs debian-12 PCMU,PCMA,G722,OPUS media-gateway arm64; \
     elif [ "$TARGETARCH" = "amd64" ]; then \
-      bash /tmp/install_cmake.sh fs debian-12 amd64; \
       bash /tmp/install_freeswitch.sh fs debian-12 PCMU,PCMA,G722,OPUS media-gateway amd64; \
     fi; \
     # Re-build the /etc/ld.so.cache with all the new libraries included.
@@ -134,9 +129,7 @@ RUN set -ex; \
         libsqlite3-0 \
         libtiff6 \
         rsyslog \
-        s3fs; \
-    ldconfig; \
-    rm -rf /var/lib/apt/lists/*
+        s3fs;
 
 COPY files/freeswitch.xml /usr/local/freeswitch/conf/freeswitch.xml
 COPY files/vars_diff.xml /usr/local/freeswitch/conf/vars_diff.xml
