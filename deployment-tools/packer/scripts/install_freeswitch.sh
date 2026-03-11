@@ -1,9 +1,12 @@
 #!/bin/bash
+set -e
+
 VARIANT=$1
 DISTRO=$2
 PREFERRED_CODEC_LIST=$3
 MEDIA_SERVER_NAME=$4
 ARCH=$5
+CONTAINER_BUILD=${CONTAINER_BUILD:-0}
 
 case "$VARIANT" in
   fs|mini)
@@ -36,6 +39,14 @@ else
   RUN_USER=admin
   HOME=/home/admin
 fi
+
+if ! id "$RUN_USER" >/dev/null 2>&1; then
+  echo "user ${RUN_USER} does not exist; falling back to root"
+  RUN_USER=root
+  HOME=/root
+fi
+
+export HOME
 
 FREESWITCH_VERSION=v1.10.10
 SPAN_DSP_VERSION=0d2e6ac
@@ -385,16 +396,20 @@ sudo cp /tmp/mrf_dialplan.xml /usr/local/freeswitch/conf/dialplan
 sudo cp /tmp/mrf_sip_profile.xml /usr/local/freeswitch/conf/sip_profiles
 sudo cp /usr/local/src/freeswitch/conf/vanilla/autoload_configs/modules.conf.xml /usr/local/freeswitch/conf/autoload_configs
 
-sudo cp /tmp/freeswitch.service /etc/systemd/system
-
 sudo chown root:root -R /usr/local/freeswitch
-sudo chmod 644 /etc/systemd/system/freeswitch.service
 sudo sed -i -e 's/global_codec_prefs=OPUS,G722,PCMU,PCMA,H264,VP8/global_codec_prefs=PCMU,PCMA,OPUS,G722/g' /usr/local/freeswitch/conf/vars.xml
 sudo sed -i -e 's/outbound_codec_prefs=OPUS,G722,PCMU,PCMA,H264,VP8/outbound_codec_prefs=PCMU,PCMA,OPUS,G722/g' /usr/local/freeswitch/conf/vars.xml
-sudo  systemctl enable freeswitch
-sudo cp /tmp/freeswitch_log_rotation /etc/cron.daily/freeswitch_log_rotation
-sudo chown root:root /etc/cron.daily/freeswitch_log_rotation
-sudo chmod a+x /etc/cron.daily/freeswitch_log_rotation
+
+if [ "$CONTAINER_BUILD" = "1" ]; then
+  echo "skipping systemd and cron setup in container build"
+else
+  sudo cp /tmp/freeswitch.service /etc/systemd/system
+  sudo chmod 644 /etc/systemd/system/freeswitch.service
+  sudo systemctl enable freeswitch
+  sudo cp /tmp/freeswitch_log_rotation /etc/cron.daily/freeswitch_log_rotation
+  sudo chown root:root /etc/cron.daily/freeswitch_log_rotation
+  sudo chmod a+x /etc/cron.daily/freeswitch_log_rotation
+fi
 
 echo "downloading soniox root verification certificate"
 cd /usr/local/freeswitch/certs

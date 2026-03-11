@@ -80,6 +80,7 @@ RUN set -ex; \
                        zlib1g-dev \
                        make \
                        markdown \
+                       patch \
                        php-dev \
                        pkg-config \
                        wget \
@@ -92,9 +93,9 @@ RUN set -ex; \
     # Build and install FreeSWITCH.
     bash /tmp/install_autoconf.sh fs; \
     if [ "$TARGETARCH" = "arm64" ]; then \
-      bash /tmp/install_freeswitch.sh fs debian-12 PCMU,PCMA,G722,OPUS media-gateway arm64; \
+      CONTAINER_BUILD=1 bash /tmp/install_freeswitch.sh fs debian-12 PCMU,PCMA,G722,OPUS media-gateway arm64; \
     elif [ "$TARGETARCH" = "amd64" ]; then \
-      bash /tmp/install_freeswitch.sh fs debian-12 PCMU,PCMA,G722,OPUS media-gateway amd64; \
+      CONTAINER_BUILD=1 bash /tmp/install_freeswitch.sh fs debian-12 PCMU,PCMA,G722,OPUS media-gateway amd64; \
     else \
       echo "Unsupported TARGETARCH: $TARGETARCH" >&2; \
       exit 1; \
