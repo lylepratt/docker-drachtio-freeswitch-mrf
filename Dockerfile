@@ -7,6 +7,7 @@ ARG TARGETARCH
 
 # Copy the necessary Packer files and scripts.
 COPY deployment-tools/packer/files/* /tmp/
+COPY deployment-tools/packer/scripts/install_autoconf.sh /tmp/install_autoconf.sh
 COPY deployment-tools/packer/scripts/install_freeswitch.sh /tmp/install_freeswitch.sh
 
 # Install FreeSWITCH.
@@ -87,13 +88,16 @@ RUN set -ex; \
                        wget \
                        yasm; \
     # Set the executable flag for Dave's install scripts.
-    chmod +x /tmp/install_freeswitch.sh; \
+    chmod +x /tmp/install_autoconf.sh /tmp/install_freeswitch.sh; \
     # Build and install FreeSWITCH.
     bash /tmp/install_autoconf.sh fs; \
     if [ "$TARGETARCH" = "arm64" ]; then \
       bash /tmp/install_freeswitch.sh fs debian-12 PCMU,PCMA,G722,OPUS media-gateway arm64; \
     elif [ "$TARGETARCH" = "amd64" ]; then \
       bash /tmp/install_freeswitch.sh fs debian-12 PCMU,PCMA,G722,OPUS media-gateway amd64; \
+    else \
+      echo "Unsupported TARGETARCH: $TARGETARCH" >&2; \
+      exit 1; \
     fi; \
     # Re-build the /etc/ld.so.cache with all the new libraries included.
     ldconfig
@@ -117,16 +121,23 @@ RUN set -ex; \
         curl \
         init-system-helpers \
         inotify-tools \
+        libavcodec59 \
+        libavfilter8 \
+        libavformat59 \
+        libavutil57 \
         libcurl4 \
         libedit2 \
         libev4 \
         libopus0 \
+        libopusfile0 \
         libpcre3 \
         libshout3 \
         libsndfile1 \
         libspeex1 \
         libspeexdsp1 \
         libsqlite3-0 \
+        libswresample4 \
+        libswscale6 \
         libtiff6 \
         rsyslog \
         s3fs;
