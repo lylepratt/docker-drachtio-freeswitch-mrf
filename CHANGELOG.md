@@ -1,3 +1,7 @@
+### Unreleased
+- remove the obsolete root `.env` file from this branch
+- clarify that older `.env` and `build-locally.sh` references are historical only; current Docker build pins live in `deployment-tools/packer/scripts/install_freeswitch.sh`
+
 ### 0.9.2 (2024-09-13)
 - fix replacement in `entrypoint.sh` to set the `Mediaserver` name correctly via `--username`
 - improve `build-locally.sh` and add a tag to the docker image with `repo:version` from `.env` file

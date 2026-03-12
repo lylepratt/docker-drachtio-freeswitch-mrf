@@ -44,7 +44,7 @@ The old `build-locally.sh` flow referenced by earlier documentation does not exi
 
 ## Version reality for this branch
 
-The checked-in `.env` and `CHANGELOG.md` do not reflect the exact versions currently used by the Docker build. The actual source of truth is `deployment-tools/packer/scripts/install_freeswitch.sh`.
+Historical docs and changelog entries may still mention a root `.env` file and `build-locally.sh`. Neither drives this branch today. The actual source of truth for build versions is `deployment-tools/packer/scripts/install_freeswitch.sh`.
 
 Current version pins used by the Docker build:
 
@@ -61,7 +61,7 @@ Current version pins used by the Docker build:
 | ONNX Runtime | `1.22.0` |
 | Node.js runtime in final image | `18` |
 
-If you change versions in `.env` without also updating the Docker build inputs above, the image will not change.
+If you want to change image versions, update the Docker build inputs above. Editing legacy notes alone will not change the image.
 
 ## Build the image
 
@@ -436,4 +436,4 @@ Do not rely on older instructions that mention:
 - no sounds
 - `ClueCon` as the default ESL password
 - `build-locally.sh`
-- `.env` as the active source of Docker build versions
+- a root `.env` file as the active source of Docker build versions
