@@ -36,12 +36,10 @@
   <!--#comment
       vars.xml contains all the #set directives for the preprocessor.
   -->
-  <X-PRE-PROCESS cmd="include" data="vars_diff.xml"/>
   <X-PRE-PROCESS cmd="include" data="vars.xml"/>
+  <X-PRE-PROCESS cmd="include" data="vars_diff.xml"/>
   <X-PRE-PROCESS cmd="set" data="rtp_video_max_bandwidth_in=2mb"/>
   <X-PRE-PROCESS cmd="set" data="rtp_video_max_bandwidth_out=2mb"/>
-  <X-PRE-PROCESS cmd="set" data="global_codec_prefs=PCMU,PCMA,G722,OPUS"/>
-  <X-PRE-PROCESS cmd="set" data="outbound_codec_prefs=PCMU,PCMA,G722,OPUS"/>
 
   <section name="configuration" description="Various Configuration">
     <X-PRE-PROCESS cmd="include" data="autoload_configs/*.xml"/>

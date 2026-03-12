@@ -143,6 +143,24 @@ docker run -d --rm \
   freeswitch
 ```
 
+### Enable S3 uploads from `/var/pres3fs`
+
+If you want the background watcher to upload files written under `/var/pres3fs`, pass `S3_UPLOAD_URI` along with AWS CLI credentials:
+
+```bash
+docker run -d --rm \
+  --name fs-mrf \
+  -e S3_UPLOAD_URI=s3://vidamedia/recordings/ \
+  -e AWS_ACCESS_KEY_ID=your-access-key \
+  -e AWS_SECRET_ACCESS_KEY=your-secret-key \
+  -v "$(pwd)/log:/usr/local/freeswitch/log" \
+  -v "$(pwd)/recordings:/usr/local/freeswitch/recordings" \
+  local/drachtio-freeswitch-mrf:amd64 \
+  freeswitch
+```
+
+With that setting, a file created at `/var/pres3fs/example.wav` is uploaded to `s3://vidamedia/recordings/example.wav`.
+
 ### Open a console in the running container
 
 Default ESL password:
@@ -174,16 +192,15 @@ The entrypoint mutates FreeSWITCH XML before launch. These are the supported fla
 | `--advertise-external-ip` | off | Rewrites the `drachtio_mrf` profile so it uses `$$ext_sip_ip` and `$$ext_rtp_ip`. |
 | `--username` | `Jambonz-Mediaserver` | Rewrites the SIP profile username to `<value>-Mediaserver`. |
 | `--log-level`, `-l` | `notice` | Rewrites `autoload_configs/switch.conf.xml`. |
-| `--g711-only`, `-g` | off | Rewrites codec preferences in `conf/vars.xml`. |
-| `--g711-only-alaw-preferred` | off | Rewrites codec preferences in `conf/vars.xml` with `PCMA` first. |
-| `--codec-list` | branch defaults | Rewrites global and outbound codec prefs in `conf/vars.xml`. |
-| `--codec-answer-generous` | off | Attempts to change inbound codec negotiation in the MRF SIP profile. |
+| `--g711-only`, `-g` | off | Rewrites codec preferences in `conf/vars_diff.xml`. |
+| `--g711-only-alaw-preferred` | off | Rewrites codec preferences in `conf/vars_diff.xml` with `PCMA` first. |
+| `--codec-list` | branch defaults | Rewrites global and outbound codec prefs in `conf/vars_diff.xml`. |
+| `--codec-answer-generous` | off | Rewrites inbound codec negotiation in the MRF SIP profile to `generous`. |
 
 ### Important caveats about those flags
 
 - `--advertise-external-ip` is required if you want `--ext-sip-ip` and `--ext-rtp-ip` to affect the `drachtio_mrf` profile. Without it, `files/sip_profiles/mrf.xml` advertises `$${local_ip_v4}`.
-- `--g711-only`, `--g711-only-alaw-preferred`, and `--codec-list` update `vars.xml`, but the shipped `drachtio_mrf` profile in `files/sip_profiles/mrf.xml` hardcodes `codec-prefs=PCMU,PCMA,G722,OPUS`. For the main MRF profile, these flags are not a full codec override.
-- `--codec-answer-generous` currently targets a `greedy` value, but the checked-in `files/sip_profiles/mrf.xml` ships with `inbound-codec-negotiation="scrooge"`. In the current branch, that flag is effectively a no-op unless the profile is changed.
+- `--g711-only`, `--g711-only-alaw-preferred`, and `--codec-list` update `vars_diff.xml`, and the shipped `drachtio_mrf` profile consumes `$${global_codec_prefs}`.
 
 ## Ports, volumes, and paths
 
@@ -222,9 +239,8 @@ Other important runtime paths:
 
 `files/freeswitch.xml`:
 
-- includes `vars_diff.xml` before `vars.xml`
-- sets `global_codec_prefs=OPUS,G722,PCMU,PCMA,VP8,H264`
-- sets `outbound_codec_prefs=OPUS,G722,PCMU,PCMA,VP8,H264`
+- includes `vars.xml` and then `vars_diff.xml`, so branch overrides win cleanly
+- sets RTP video bandwidth defaults
 - includes `autoload_configs/*.xml`
 - includes `dialplan/*.xml`
 
@@ -237,7 +253,7 @@ Other important runtime paths:
 - TLS SIP on `5081`
 - username `Jambonz-Mediaserver`
 - `enable-3pcc=true`
-- codec prefs `PCMU,PCMA,G722,OPUS`
+- codec prefs inherited from `$${global_codec_prefs}`
 - default external addresses set to `$${local_ip_v4}` unless changed at runtime
 
 `files/sip_profiles/internal.xml` and `files/sip_profiles/external.xml` are also copied into the image and define auxiliary profiles on `5036` and `5037`.
@@ -290,25 +306,23 @@ This is another reason the old “minimal base image” description is no longer
 
 At container startup, `files/entrypoint.sh` does more than launch FreeSWITCH:
 
-- writes `AWS_KEY:AWS_SECRET_KEY` into a local `passwd` file
 - starts `/usr/local/bin/monitorPres3fs.sh` in the background
 - starts `rsyslogd` if present
 - forces the ESL listener to `0.0.0.0`
-- forces an ACL entry that allows ESL connections from `0.0.0.0/0`
+- rewrites the existing `socket_acl` entry to allow ESL connections from `0.0.0.0/0`
 
 `files/monitorPres3fs.sh`:
 
-- watches `/var/pres3fs` with `inotifywait`
-- uploads new files to the hardcoded bucket path `s3://vidamedia/recordings/<filename>`
+- watches `${COPY_POINT}` or `/var/pres3fs` with `inotifywait`
+- uploads new files to `${S3_UPLOAD_URI}/<filename>` when `S3_UPLOAD_URI` is set
 - logs to `/var/log/monitorPres3fs.log`
 - deletes files older than 3 days from `/var/pres3fs`
 
 Notes:
 
 - the `s3fs` mount command in `entrypoint.sh` is currently commented out, so the active S3-related behavior is the upload watcher, not an S3FS mount
-- `entrypoint.sh` writes `AWS_KEY` and `AWS_SECRET_KEY` into a local `passwd` file for the commented-out `s3fs` flow, but the active upload watcher uses `aws s3 cp`
-- for the active watcher, you still need valid AWS CLI credentials such as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, or another supported AWS credential source
-- missing or invalid AWS credentials do not stop FreeSWITCH from starting, but uploads from `/var/pres3fs` will fail
+- for the active watcher, set `S3_UPLOAD_URI` to an S3 prefix such as `s3://vidamedia/recordings/` and provide valid AWS CLI credentials such as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, or another supported AWS credential source
+- missing `S3_UPLOAD_URI` or invalid AWS credentials do not stop FreeSWITCH from starting, but uploads from `/var/pres3fs` will be skipped or fail
 - the container runs as root because the entrypoint edits config files and starts background services
 
 ## Relevant build args and environment variables
@@ -320,7 +334,8 @@ Build arguments:
 
 Runtime environment variables actually referenced by the current scripts:
 
-- `AWS_KEY` and `AWS_SECRET_KEY` are only used to create the `passwd` file for the commented-out `s3fs` path
+- `COPY_POINT` controls the directory watched by `monitorPres3fs.sh` and defaults to `/var/pres3fs`
+- `S3_UPLOAD_URI` controls the target prefix for `aws s3 cp`; for example, `s3://vidamedia/recordings/`; if unset, uploads are skipped
 - AWS CLI-compatible credentials such as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are what the active `aws s3 cp` upload path needs
 
 ## Security notes

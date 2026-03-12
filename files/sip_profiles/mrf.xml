@@ -23,7 +23,7 @@
       <param name="apply-nat-acl" value="nat.auto"/>
       <param name="context" value="mrf"/>
       <param name="rtp-timer-name" value="soft"/>
-      <param name="codec-prefs" value="PCMU,PCMA,G722,OPUS"/>
+      <param name="codec-prefs" value="$${global_codec_prefs}"/>
       <param name="inbound-codec-negotiation" value="scrooge"/>
       <param name="inbound-reg-force-matching-username" value="false"/>
       <param name="nonce-ttl" value="86400"/>
@@ -63,3 +63,4 @@
 
     </settings>
   </profile>
+ </include>
