@@ -412,6 +412,7 @@ else
 fi
 
 echo "downloading soniox root verification certificate"
+sudo mkdir /usr/local/freeswitch/certs
 cd /usr/local/freeswitch/certs
 sudo wget https://raw.githubusercontent.com/grpc/grpc/master/etc/roots.pem
 
