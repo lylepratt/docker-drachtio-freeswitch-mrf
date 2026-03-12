@@ -101,7 +101,11 @@ RUN set -ex; \
       exit 1; \
     fi; \
     # Re-build the /etc/ld.so.cache with all the new libraries included.
-    ldconfig
+    ldconfig; \
+    # Drop apt metadata and transient build trees before the builder stage is committed.
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/*; \
+    rm -rf /usr/local/src/* /tmp/* /var/tmp/* /root/.cache/*
 
 FROM ${DISTRO_IMAGE} AS final
 
