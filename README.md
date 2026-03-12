@@ -302,6 +302,28 @@ If you need the exact list, inspect `deployment-tools/packer/files/modules.conf.
 
 This is another reason the old “minimal base image” description is no longer accurate for this branch.
 
+## Maintaining `install_freeswitch.sh`
+
+`deployment-tools/packer/scripts/install_freeswitch.sh` is a vendored script from an external packer source. If you refresh it from upstream, compare carefully and re-apply the repo-specific behavior below before relying on the Docker build.
+
+Container compatibility changes that must be preserved:
+
+- add `set -e` near the top so the Docker build fails fast instead of continuing after a failed step
+- keep `CONTAINER_BUILD=${CONTAINER_BUILD:-0}` and the `if [ "$CONTAINER_BUILD" = "1" ] ... else ... fi` guard around the `freeswitch.service`, `systemctl enable freeswitch`, and cron setup block
+- keep the fallback that switches `RUN_USER` to `root` and `HOME` to `/root` when `admin` or `ec2-user` does not exist, then `export HOME`
+
+Those changes matter because the container build runs the script in a minimal builder stage that does not create the normal packer users and cannot use systemd.
+
+Repo-specific build behavior that should survive an upstream refresh:
+
+- keep the local patch and replacement copy/apply steps for `configure.ac.extra`, `Makefile.am.extra`, `modules.conf.in.extra`, `modules.conf.vanilla.xml.extra`, `avmd.conf.xml`, `switch_core_media.c.patch`, `switch_rtp.c.patch`, `switch_core_media_bug.c.patch`, `switch_types.h.patch`, `mod_avmd.c.patch`, `mod_httapi.c.patch`, `mod_event_socket.c.patch`, `switch_event.c`, `mod_conference.h`, `conference_api.c`, `ops-ws.c.patch`, and `configure.ac.libfvad`
+- keep the post-install config overlay that copies `acl.conf.xml`, `event_socket.conf.xml`, `switch.conf.xml`, `conference.conf.xml`, `mrf_dialplan.xml`, and `mrf_sip_profile.xml` into `/usr/local/freeswitch/conf`
+- keep the replacement of the default dialplan and SIP profile directories before copying the MRF-specific XML
+- keep the custom codec reordering in `/usr/local/freeswitch/conf/vars.xml`
+- keep the Soniox `roots.pem` download and the `mod_vad_silero` model download at the end of the script
+
+If an upstream refresh removes or changes any of those items, the container image built from this repository will diverge from the current behavior even if the script still completes successfully.
+
 ## Startup side effects and operational behavior
 
 At container startup, `files/entrypoint.sh` does more than launch FreeSWITCH:
