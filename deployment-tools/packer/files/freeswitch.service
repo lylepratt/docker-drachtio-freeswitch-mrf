@@ -1,0 +1,43 @@
+
+[Unit]
+Description=freeswitch
+After=syslog.target network.target local-fs.target
+
+[Service]
+; service
+Type=forking
+PIDFile=/usr/local/freeswitch/run/freeswitch.pid
+EnvironmentFile=-/etc/default/freeswitch
+Environment="MOD_AUDIO_FORK_SUBPROTOCOL_NAME=audio.jambonz.org"
+Environment="MOD_AUDIO_FORK_SERVICE_THREADS=1"
+Environment="MOD_AUDIO_FORK_BUFFER_SECS=5"
+Environment="LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64"
+Environment="LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64"
+Environment="DEEPGRAM_SPEECH_USE_SINGLE_CONNECTION=1"
+Environment="AZURE_SPEECH_USE_SINGLE_CONNECTION=1"
+Environment="DISABLE_HTTP2_FOR_TTS_STREAMING=1"
+Environment="WS_PING_INTERVAL=10"
+Environment="WS_NO_PONG_HANGUP_INTERVAL=100"
+Environment="DEEPGRAM_TTS_CURL_CONNECT_TIMEOUT=0"
+Environment="PLAYHT_TTS_CURL_CONNECT_TIMEOUT=0"
+Environment="WHISPER_TTS_CURL_CONNECT_TIMEOUT=0"
+ExecStart=/usr/local/freeswitch/bin/freeswitch -nc -nonat
+TimeoutSec=45s
+Restart=always
+; exec
+User=root
+Group=daemon
+LimitCORE=infinity
+LimitNOFILE=100000
+LimitNPROC=60000
+;LimitSTACK=240
+LimitRTPRIO=infinity
+LimitRTTIME=7000000
+IOSchedulingClass=realtime
+IOSchedulingPriority=2
+CPUSchedulingPolicy=rr
+CPUSchedulingPriority=89
+UMask=0007
+
+[Install]
+WantedBy=multi-user.target

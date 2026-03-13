@@ -1,0 +1,7 @@
+deployment.tfvars
+.terraform.*
+.terrform
+.terraform/*
+terraform.tfstate
+terraform.tfstate.backup
+terraform/gcp/medium/.terraform

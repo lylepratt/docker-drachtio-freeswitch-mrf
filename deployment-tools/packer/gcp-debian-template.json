@@ -1,0 +1,182 @@
+{
+  "variables": {
+    "project_id": "drachtio-cpaas",
+    "source_image_family": "debian-12",
+    "source_image_project_id": "debian-cloud",
+    "image_zone": "us-central1-c",
+    "instance_type": "c2-standard-8",
+    "variant": "mini",
+    "_comment": "The following variants are supported: mini, fs, sip, rtp, sip-rtp, web, monitoring, web-monitoring",
+    "ssh_username": "admin",
+    "drachtio_version": "v0.9.3",
+    "jambonz_version": "v0.9.5-2",
+    "jambonz_user": "admin",
+    "jambonz_password": "JambonzR0ck$",
+    "install_telegraf": "yes",
+    "install_certbot.sh": "yes",
+    "homer_user": "homer_user",
+    "homer_password": "XcapJTqy11LnsYRtxXGPTYQkAnI",
+    "rtp_engine_version": "mr11.5.1.45",
+    "rtp_engine_min_port": "40000",
+    "rtp_engine_max_port": "60000",
+    "mediaserver_name" : "jambonz",
+    "preferred_codec_list" : "PCMU,PCMA,OPUS,G722",
+    "distro": "debian-12",
+    "ami_base_image_arch": "amd64",
+    "leave_source": "yes"
+  },
+  "builders": [{
+    "type": "googlecompute",
+    "project_id": "{{user `project_id`}}",
+    "source_image_family": "{{user `source_image_family`}}",
+    "source_image_project_id": "{{user `source_image_project_id`}}",
+    "ssh_username": "{{user `ssh_username`}}",
+    "zone": "{{user `image_zone`}}",
+    "machine_type": "{{user `instance_type`}}",
+    "image_name": "jambonz-{{user `variant`}}-094-{{user `distro`}}-{{isotime | clean_resource_name}}",
+    "disk_size": "100"
+  }],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "sudo apt-get update",
+        "sudo apt-get remove --auto-remove nftables",
+        "sudo apt-get purge nftables",
+        "sudo apt-get -y install cron python-is-python3 lsof gcc g++ make cmake build-essential git autoconf automake default-mysql-client redis-tools \\",
+        "curl argon2 telnet libtool libtool-bin libssl-dev libcurl4-openssl-dev zlib1g-dev systemd-coredump liblz4-tool libboost-all-dev \\",
+        "libxtables-dev libip6tc-dev libip4tc-dev libiptc-dev libavformat-dev liblua5.1-0-dev libavfilter-dev libavcodec-dev libswresample-dev \\",
+        "libevent-dev libpcap-dev libxmlrpc-core-c3-dev markdown libjson-glib-dev lsb-release netcat-traditional libev-dev \\",
+        "libhiredis-dev gperf libspandsp-dev default-libmysqlclient-dev htop dnsutils gdb autoconf-archive libmnl-dev libnftnl-dev \\",
+        "gnupg2 wget pkg-config ca-certificates libjpeg-dev libsqlite3-dev libpcre3-dev libldns-dev snapd linux-headers-$(uname -r) \\",
+        "libspeex-dev libspeexdsp-dev libedit-dev libtiff-dev yasm libswscale-dev haveged jq fail2ban pandoc libre2-dev bc \\",
+        "libopus-dev libsndfile1-dev libshout3-dev libmpg123-dev libmp3lame-dev libopusfile-dev libgoogle-perftools-dev libasound2",
+        "sudo chmod a+w /usr/local/src",
+        "mkdir ~/apps",
+        "cd ~/apps",
+        "git config --global advice.detachedHead false",
+        "sudo usermod -aG google-sudoers admin"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "files/",
+      "destination": "/tmp"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}' {{user `variant`}} {{user `distro`}}",
+      "script": "scripts/install_os_tuning.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'  {{user `variant`}} {{user `distro`}}",
+      "script": "scripts/install_autoconf.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'  {{user `variant`}} {{user `distro`}} {{user `ami_base_image_arch`}}",
+      "script": "scripts/install_cmake.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'  {{user `variant`}} {{user `distro`}} {{user `drachtio_version`}} gcp",
+      "script": "scripts/install_drachtio.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'  {{user `variant`}} {{user `distro`}}",
+      "script": "scripts/install_nodejs.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo -E -u admin /bin/bash '{{ .Path }}'  {{user `variant`}} {{user `distro`}} {{user `preferred_codec_list`}} {{user `mediaserver_name`}} {{user `ami_base_image_arch`}}",
+      "script": "scripts/install_freeswitch.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'  {{user `variant`}} {{user `distro`}} {{user `rtp_engine_version`}} gcp",
+      "script": "scripts/install_rtpengine.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo -E -u admin /bin/bash '{{ .Path }}'  {{user `variant`}} {{user `distro`}} ",
+      "script": "scripts/install_recordings_uploader.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'  {{user `variant`}} {{user `distro`}} {{user `jambonz_version`}} {{user `jambonz_user`}} {{user `jambonz_password`}}",
+      "script": "scripts/install_jambonz_apps.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'  {{user `variant`}} {{user `distro`}}",
+      "script": "scripts/install_redis.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'   {{user `variant`}} {{user `distro`}} {{user `jambonz_user`}} {{user `jambonz_password`}}",
+      "script": "scripts/install_mysql.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}' {{user `variant`}} {{user `distro`}}",
+      "script": "scripts/install_telegraf.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'  {{user `variant`}} {{user `distro`}} {{user `homer_user`}} {{user `homer_password`}}",
+      "script": "scripts/install_postgresql.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'  {{user `variant`}} {{user `distro`}} {{user `homer_user`}} {{user `homer_password`}}",
+      "script": "scripts/install_homer.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'  {{user `variant`}} {{user `distro`}}",
+      "script": "scripts/install_influxdb.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'  {{user `variant`}} {{user `distro`}}",
+      "script": "scripts/install_jaeger.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}' {{user `variant`}} {{user `distro`}}",
+      "script": "scripts/install_nginx.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'  {{user `variant`}} {{user `distro`}} {{user `telegraf_role`}}",
+      "script": "scripts/install_grafana.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'  {{user `variant`}} {{user `distro`}}",
+      "script": "scripts/install_certbot.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'  {{user `variant`}} {{build `ID`}} {{user `apiban_username`}} {{user `apiban_password`}}",
+      "script": "scripts/install_apiban.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}' {{user `variant`}} {{user `distro`}}",
+      "script": "scripts/install_fail2ban.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo '{{ .Path }}'  {{user `variant`}} {{user `distro`}} {{user `install_jambonz_team_keys`}}",
+      "script": "scripts/install_ssh_keys.sh"
+    },
+    {
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; sudo -u admin /bin/bash '{{ .Path }}' {{user `variant`}} {{user `distro`}} {{user `leave_source`}}",
+      "script": "scripts/cleanup.sh"
+    }
+  ]
+}
