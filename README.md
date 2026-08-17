@@ -52,7 +52,7 @@ Current version pins used by the Docker build:
 | --- | --- |
 | Base distro | `debian:12` |
 | FreeSWITCH | `v1.10.10` |
-| `freeswitch-modules` bundle | `2.5.10` |
+| `freeswitch-modules` bundle | `2.5.24` |
 | gRPC | `v1.57.0` |
 | AWS SDK for C++ | `1.11.500` |
 | libwebsockets | `v4.3.3` |
@@ -282,7 +282,7 @@ The build stage installs `modules.conf.xml` from `deployment-tools/packer/files/
 - media helpers such as `mod_audio_fork`, `mod_avmd`, `mod_vad_detect`, and `mod_vad_silero`
 - codec and file modules such as `mod_spandsp`, `mod_g729`, `mod_amr`, `mod_opus`, `mod_sndfile`, `mod_shout`, `mod_local_stream`, and `mod_tone_stream`
 - language/runtime support including `mod_lua`
-- cloud AI integrations such as `mod_aws_tts`, `mod_aws_lex`, `mod_aws_transcribe_ws`, `mod_azure_transcribe`, `mod_azure_tts`, `mod_google_transcribe`, `mod_openai_transcribe`, `mod_openai_s2s`, `mod_soniox_transcribe`, `mod_speechmatics_transcribe`, `mod_deepgram_transcribe`, `mod_deepgram_tts`, `mod_cartesia_tts`, `mod_elevenlabs_tts`, `mod_assemblyai_transcribe`, and others
+- cloud AI integrations such as `mod_aws_tts`, `mod_aws_lex`, `mod_aws_transcribe_ws`, `mod_azure_transcribe`, `mod_azure_tts`, `mod_google_transcribe`, `mod_openai_transcribe`, `mod_openai_s2s`, `mod_gptlive_s2s`, `mod_soniox_transcribe`, `mod_speechmatics_transcribe`, `mod_deepgram_transcribe`, `mod_deepgram_tts`, `mod_cartesia_tts`, `mod_elevenlabs_tts`, `mod_assemblyai_transcribe`, and others
 
 If you need the exact list, inspect `deployment-tools/packer/files/modules.conf.vanilla.xml.extra`.
 

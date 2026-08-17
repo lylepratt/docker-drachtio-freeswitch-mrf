@@ -32,6 +32,7 @@ applications/mod_jambonz_transcribe
 applications/mod_nuance_transcribe
 applications/mod_nvidia_transcribe
 applications/mod_nvidia_tts
+applications/mod_gptlive_s2s
 applications/mod_openai_s2s
 applications/mod_openai_transcribe
 applications/mod_ultravox_s2s
