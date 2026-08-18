@@ -5,7 +5,8 @@ index 21ef8f0..1c57352 100644
 @@ -1,6 +1,10 @@
  #ifndef __GPTLIVE_GLUE_H__
  #define __GPTLIVE_GLUE_H__
- 
+-
++
 +#ifdef __cplusplus
 +extern "C" {
 +#endif
@@ -14,9 +15,11 @@ index 21ef8f0..1c57352 100644
  switch_status_t gptlive_s2s_cleanup();
  switch_bool_t gptlive_s2s_read_frame(switch_core_session_t *session, switch_media_bug_t *bug, void* user_data);
 @@ -18,4 +22,8 @@ switch_status_t gptlive_s2s_session_delete(switch_core_session_t *session, const
- 
+-
++
  switch_status_t gptlive_s2s_send_client_event(switch_core_session_t *session, const char* bugname, cJSON* json);
- 
+-
++
 +#ifdef __cplusplus
 +}
 +#endif
@@ -28,10 +31,12 @@ index d87d134..52367f8 100644
 +++ b/gptlive_glue.cpp
 @@ -8,6 +8,7 @@
  #include <sstream>
- 
+-
++
  #include "mod_gptlive_s2s.h"
 +#include "gptlive_glue.h"
- 
+-
++
  #include "jambonz/simple_json_parser.hpp"
  #include "jambonz/vector_math.h"
 diff --git a/Makefile.am b/Makefile.am
