@@ -210,6 +210,10 @@ git clone --recursive https://github.com/awslabs/aws-crt-cpp.git
 cp -r /usr/local/src/freeswitch-modules/modules/* /usr/local/src/freeswitch/src/mod/applications
 sudo chown -R $RUN_USER:$RUN_USER /usr/local/src/freeswitch/src/mod/applications/
 
+# Keep the C caller and C++ glue on one checked ABI, and reject unresolved
+# module-local symbols while linking rather than deferring them to dlopen().
+patch -d /usr/local/src/freeswitch/src/mod/applications/mod_gptlive_s2s -p1 < /tmp/mod_gptlive_s2s.c-abi.patch
+
 # copy Makefiles and patches into place
 cp /tmp/configure.ac.extra /usr/local/src/freeswitch/configure.ac
 cp /tmp/Makefile.am.extra /usr/local/src/freeswitch/Makefile.am
@@ -385,6 +389,16 @@ sudo cp /tmp/ax_check_compile_flag.m4 .
 ./configure --enable-tcmalloc=no --with-lws=yes --with-extra=yes --with-jambonz-logging=yes
 make -j4
 sudo make install
+
+# Do not publish a module that defers one of its own glue functions to the
+# runtime loader. This catches stale or incomplete module objects during the
+# image build instead of when FreeSWITCH starts.
+GPTLIVE_MODULE=/usr/local/freeswitch/mod/mod_gptlive_s2s.so
+if ! nm -D --defined-only "$GPTLIVE_MODULE" | grep -q ' gptlive_s2s_read_frame$'; then
+  echo "ERROR: $GPTLIVE_MODULE does not define gptlive_s2s_read_frame" >&2
+  exit 1
+fi
+
 sudo make cd-sounds-install cd-moh-install
 sudo cp /tmp/acl.conf.xml /usr/local/freeswitch/conf/autoload_configs
 sudo cp /tmp/event_socket.conf.xml /usr/local/freeswitch/conf/autoload_configs

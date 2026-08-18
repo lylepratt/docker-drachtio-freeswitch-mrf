@@ -1,0 +1,46 @@
+diff --git a/gptlive_glue.h b/gptlive_glue.h
+index 21ef8f0..1c57352 100644
+--- a/gptlive_glue.h
++++ b/gptlive_glue.h
+@@ -1,6 +1,10 @@
+ #ifndef __GPTLIVE_GLUE_H__
+ #define __GPTLIVE_GLUE_H__
+ 
++#ifdef __cplusplus
++extern "C" {
++#endif
++
+ switch_status_t gptlive_s2s_init();
+ switch_status_t gptlive_s2s_cleanup();
+ switch_bool_t gptlive_s2s_read_frame(switch_core_session_t *session, switch_media_bug_t *bug, void* user_data);
+@@ -18,4 +22,8 @@ switch_status_t gptlive_s2s_session_delete(switch_core_session_t *session, const
+ 
+ switch_status_t gptlive_s2s_send_client_event(switch_core_session_t *session, const char* bugname, cJSON* json);
+ 
++#ifdef __cplusplus
++}
++#endif
++
+ #endif
+diff --git a/gptlive_glue.cpp b/gptlive_glue.cpp
+index d87d134..52367f8 100644
+--- a/gptlive_glue.cpp
++++ b/gptlive_glue.cpp
+@@ -8,6 +8,7 @@
+ #include <sstream>
+ 
+ #include "mod_gptlive_s2s.h"
++#include "gptlive_glue.h"
+ 
+ #include "jambonz/simple_json_parser.hpp"
+ #include "jambonz/vector_math.h"
+diff --git a/Makefile.am b/Makefile.am
+index bb628d4..5c5155f 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -6,4 +6,4 @@ mod_gptlive_s2s_la_SOURCES  = mod_gptlive_s2s.c gptlive_glue.cpp audio_pipe.cpp
+ mod_gptlive_s2s_la_CFLAGS   = $(AM_CFLAGS)
+ mod_gptlive_s2s_la_CXXFLAGS = $(AM_CXXFLAGS) -std=c++17
+ mod_gptlive_s2s_la_LIBADD   = $(switch_builddir)/libfreeswitch.la
+-mod_gptlive_s2s_la_LDFLAGS  = -avoid-version -module -no-undefined -shared `pkg-config --libs libwebsockets`
++mod_gptlive_s2s_la_LDFLAGS  = -avoid-version -module -no-undefined -Wl,-z,defs -shared `pkg-config --libs libwebsockets`
