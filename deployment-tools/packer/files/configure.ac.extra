@@ -2200,6 +2200,7 @@ AC_CONFIG_FILES([Makefile
     src/mod/applications/mod_nuance_transcribe/Makefile
     src/mod/applications/mod_nvidia_transcribe/Makefile
     src/mod/applications/mod_nvidia_tts/Makefile
+    src/mod/applications/mod_gptlive_s2s/Makefile
     src/mod/applications/mod_openai_s2s/Makefile
     src/mod/applications/mod_openai_transcribe/Makefile
     src/mod/applications/mod_resemble_tts/Makefile
