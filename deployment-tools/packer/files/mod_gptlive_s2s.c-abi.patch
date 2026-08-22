@@ -46,6 +46,7 @@ index bb628d4..5c5155f 100644
 @@ -6,4 +6,4 @@ mod_gptlive_s2s_la_SOURCES  = mod_gptlive_s2s.c gptlive_glue.cpp audio_pipe.cpp
  mod_gptlive_s2s_la_CFLAGS   = $(AM_CFLAGS)
  mod_gptlive_s2s_la_CXXFLAGS = $(AM_CXXFLAGS) -std=c++17
- mod_gptlive_s2s_la_LIBADD   = $(switch_builddir)/libfreeswitch.la
+-mod_gptlive_s2s_la_LIBADD   = $(switch_builddir)/libfreeswitch.la
++mod_gptlive_s2s_la_LIBADD   = $(switch_builddir)/libfreeswitch.la -lspeexdsp
 -mod_gptlive_s2s_la_LDFLAGS  = -avoid-version -module -no-undefined -shared `pkg-config --libs libwebsockets`
 +mod_gptlive_s2s_la_LDFLAGS  = -avoid-version -module -no-undefined -Wl,-z,defs -shared `pkg-config --libs libwebsockets`
