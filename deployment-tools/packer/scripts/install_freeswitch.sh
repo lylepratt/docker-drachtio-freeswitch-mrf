@@ -333,7 +333,10 @@ git submodule update --init --recursive
 mkdir -p cmake/build
 cd cmake/build
 cmake -DBUILD_SHARED_LIBS=ON -DgRPC_INSTALL=ON -DgRPC_SSL_PROVIDER=package -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo ../..
-make -j4
+if ! make -j4; then
+  echo "parallel gRPC build failed; retrying serially to reduce compiler memory pressure"
+  make -j1
+fi
 sudo make install
 
 echo now that I have built grpc++ lets see where absl_any_invocable.pc landed
