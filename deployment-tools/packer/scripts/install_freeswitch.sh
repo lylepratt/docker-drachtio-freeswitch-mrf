@@ -393,12 +393,47 @@ sudo cp /tmp/ax_check_compile_flag.m4 .
 make -j4
 sudo make install
 
-# Do not publish a module that defers one of its own glue functions to the
-# runtime loader. This catches stale or incomplete module objects during the
-# image build instead of when FreeSWITCH starts.
+# Do not publish a module that omits its C++ glue object or has unresolved
+# runtime dependencies. FreeSWITCH builds module internals with hidden
+# visibility, so these functions are intentionally local ELF symbols rather
+# than entries in the dynamic export table.
 GPTLIVE_MODULE=/usr/local/freeswitch/mod/mod_gptlive_s2s.so
-if ! nm -D --defined-only "$GPTLIVE_MODULE" | grep -q ' gptlive_s2s_read_frame$'; then
-  echo "ERROR: $GPTLIVE_MODULE does not define gptlive_s2s_read_frame" >&2
+GPTLIVE_GLUE_SYMBOLS=(
+  gptlive_s2s_init
+  gptlive_s2s_cleanup
+  gptlive_s2s_read_frame
+  gptlive_s2s_write_frame
+  gptlive_s2s_session_create
+  gptlive_s2s_session_connect
+  gptlive_s2s_session_delete
+  gptlive_s2s_send_client_event
+)
+GPTLIVE_DEFINED_SYMBOLS=$(nm --defined-only --format=posix "$GPTLIVE_MODULE" | cut -d ' ' -f 1)
+for symbol in "${GPTLIVE_GLUE_SYMBOLS[@]}"; do
+  if ! grep -Fxq "$symbol" <<< "$GPTLIVE_DEFINED_SYMBOLS"; then
+    echo "ERROR: $GPTLIVE_MODULE does not define $symbol" >&2
+    exit 1
+  fi
+done
+
+# FreeSWITCH resolves this entry table with dlsym when loading the module. It
+# must retain default visibility even though implementation symbols are hidden.
+if ! nm -D --defined-only --format=posix "$GPTLIVE_MODULE" \
+  | cut -d ' ' -f 1 \
+  | grep -Fxq 'mod_gptlive_s2s_module_interface'; then
+  echo "ERROR: $GPTLIVE_MODULE does not export its FreeSWITCH module interface" >&2
+  exit 1
+fi
+
+if ! GPTLIVE_RELOCATIONS=$(LD_LIBRARY_PATH=/usr/local/freeswitch/lib:/usr/local/lib:/usr/local/lib64 \
+  ldd -r "$GPTLIVE_MODULE" 2>&1); then
+  printf '%s\n' "$GPTLIVE_RELOCATIONS" >&2
+  echo "ERROR: unable to resolve $GPTLIVE_MODULE runtime dependencies" >&2
+  exit 1
+fi
+if grep -Eq 'not found|undefined symbol' <<< "$GPTLIVE_RELOCATIONS"; then
+  printf '%s\n' "$GPTLIVE_RELOCATIONS" >&2
+  echo "ERROR: $GPTLIVE_MODULE has unresolved runtime dependencies" >&2
   exit 1
 fi
 
