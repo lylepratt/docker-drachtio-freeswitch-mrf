@@ -210,6 +210,11 @@ git clone --recursive https://github.com/awslabs/aws-crt-cpp.git
 cp -r /usr/local/src/freeswitch-modules/modules/* /usr/local/src/freeswitch/src/mod/applications
 sudo chown -R $RUN_USER:$RUN_USER /usr/local/src/freeswitch/src/mod/applications/
 
+# Keep the C caller and C++ glue on one checked ABI, and reject unresolved
+# module-local symbols while linking rather than deferring them to dlopen().
+patch -d /usr/local/src/freeswitch/src/mod/applications/mod_gptlive_s2s -p1 < /tmp/mod_gptlive_s2s.c-abi.patch
+patch -d /usr/local/src/freeswitch/src/mod/applications/mod_gptlive_s2s -p1 < /tmp/mod_gptlive_s2s.production.patch
+
 # copy Makefiles and patches into place
 cp /tmp/configure.ac.extra /usr/local/src/freeswitch/configure.ac
 cp /tmp/Makefile.am.extra /usr/local/src/freeswitch/Makefile.am
@@ -329,7 +334,10 @@ git submodule update --init --recursive
 mkdir -p cmake/build
 cd cmake/build
 cmake -DBUILD_SHARED_LIBS=ON -DgRPC_INSTALL=ON -DgRPC_SSL_PROVIDER=package -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo ../..
-make -j4
+if ! make -j4; then
+  echo "parallel gRPC build failed; retrying serially to reduce compiler memory pressure"
+  make -j1
+fi
 sudo make install
 
 echo now that I have built grpc++ lets see where absl_any_invocable.pc landed
@@ -385,6 +393,51 @@ sudo cp /tmp/ax_check_compile_flag.m4 .
 ./configure --enable-tcmalloc=no --with-lws=yes --with-extra=yes --with-jambonz-logging=yes
 make -j4
 sudo make install
+
+# Do not publish a module that omits its C++ glue object or has unresolved
+# runtime dependencies. FreeSWITCH builds module internals with hidden
+# visibility, so these functions are intentionally local ELF symbols rather
+# than entries in the dynamic export table.
+GPTLIVE_MODULE=/usr/local/freeswitch/mod/mod_gptlive_s2s.so
+GPTLIVE_GLUE_SYMBOLS=(
+  gptlive_s2s_init
+  gptlive_s2s_cleanup
+  gptlive_s2s_read_frame
+  gptlive_s2s_write_frame
+  gptlive_s2s_session_create
+  gptlive_s2s_session_connect
+  gptlive_s2s_session_delete
+  gptlive_s2s_send_client_event
+)
+GPTLIVE_DEFINED_SYMBOLS=$(nm --defined-only --format=posix "$GPTLIVE_MODULE" | cut -d ' ' -f 1)
+for symbol in "${GPTLIVE_GLUE_SYMBOLS[@]}"; do
+  if ! grep -Fxq "$symbol" <<< "$GPTLIVE_DEFINED_SYMBOLS"; then
+    echo "ERROR: $GPTLIVE_MODULE does not define $symbol" >&2
+    exit 1
+  fi
+done
+
+# FreeSWITCH resolves this entry table with dlsym when loading the module. It
+# must retain default visibility even though implementation symbols are hidden.
+if ! nm -D --defined-only --format=posix "$GPTLIVE_MODULE" \
+  | cut -d ' ' -f 1 \
+  | grep -Fxq 'mod_gptlive_s2s_module_interface'; then
+  echo "ERROR: $GPTLIVE_MODULE does not export its FreeSWITCH module interface" >&2
+  exit 1
+fi
+
+if ! GPTLIVE_RELOCATIONS=$(LD_LIBRARY_PATH=/usr/local/freeswitch/lib:/usr/local/lib:/usr/local/lib64 \
+  ldd -r "$GPTLIVE_MODULE" 2>&1); then
+  printf '%s\n' "$GPTLIVE_RELOCATIONS" >&2
+  echo "ERROR: unable to resolve $GPTLIVE_MODULE runtime dependencies" >&2
+  exit 1
+fi
+if grep -Eq 'not found|undefined symbol' <<< "$GPTLIVE_RELOCATIONS"; then
+  printf '%s\n' "$GPTLIVE_RELOCATIONS" >&2
+  echo "ERROR: $GPTLIVE_MODULE has unresolved runtime dependencies" >&2
+  exit 1
+fi
+
 sudo make cd-sounds-install cd-moh-install
 sudo cp /tmp/acl.conf.xml /usr/local/freeswitch/conf/autoload_configs
 sudo cp /tmp/event_socket.conf.xml /usr/local/freeswitch/conf/autoload_configs
