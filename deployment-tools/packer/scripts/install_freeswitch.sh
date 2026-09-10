@@ -213,6 +213,7 @@ sudo chown -R $RUN_USER:$RUN_USER /usr/local/src/freeswitch/src/mod/applications
 # Keep the C caller and C++ glue on one checked ABI, and reject unresolved
 # module-local symbols while linking rather than deferring them to dlopen().
 patch -d /usr/local/src/freeswitch/src/mod/applications/mod_gptlive_s2s -p1 < /tmp/mod_gptlive_s2s.c-abi.patch
+patch -d /usr/local/src/freeswitch/src/mod/applications/mod_gptlive_s2s -p1 < /tmp/mod_gptlive_s2s.production.patch
 
 # copy Makefiles and patches into place
 cp /tmp/configure.ac.extra /usr/local/src/freeswitch/configure.ac

@@ -1,0 +1,403 @@
+--- a/audio_pipe.cpp
++++ b/audio_pipe.cpp
+@@ -18,28 +18,12 @@
+ // 960 * 3 = 2880 bytes every 60 ms
+ #define MIN_AUDIO_BYTES (2880)
+ 
+-/*
+- * The OpenAI-Alpha header is MANDATORY on the /v1/live handshake. Without it the
+- * upgrade is refused before the websocket is established:
+- *
+- *   400 {"code":"invalid_websocket_query",
+- *        "message":"OpenAI-Alpha must be \"quicksilver=v2\" for /v1/live"}
+- *
+- * The value is an alpha protocol-version tag, so it will churn; the env override
+- * lets an operator track a bump without waiting for a module rebuild. Kept in
+- * lockstep with mediajam's internal/s2s/gptlive.go.
+- */
+-#define GPTLIVE_ALPHA_HEADER "OpenAI-Alpha:"
+-#define GPTLIVE_ALPHA_VALUE  "quicksilver=v2"
+-
+ using namespace gptlive_s2s;
+ 
+ namespace {
+   static const char *requestedTcpKeepaliveSecs = std::getenv("MOD_AUDIO_FORK_TCP_KEEPALIVE_SECS");
+   static int nTcpKeepaliveSecs = requestedTcpKeepaliveSecs ? ::atoi(requestedTcpKeepaliveSecs) : 55;
+ 
+-  static const char *alphaOverride = std::getenv("JAMBONES_GPTLIVE_ALPHA");
+-  static const char *gptliveAlphaValue = (alphaOverride && *alphaOverride) ? alphaOverride : GPTLIVE_ALPHA_VALUE;
+ }
+ 
+ int AudioPipe::lws_callback(struct lws *wsi,
+@@ -65,16 +49,6 @@
+         if (ap) {
+           unsigned char **p = (unsigned char **)in, *end = (*p) + len;
+ 
+-          /* the alpha opt-in rides along on every auth mode, so it is added
+-             before (and independently of) the Authorization header */
+-          if (lws_add_http_header_by_name(wsi, (const unsigned char *) GPTLIVE_ALPHA_HEADER,
+-                                          (const unsigned char *) gptliveAlphaValue,
+-                                          strlen(gptliveAlphaValue), p, end)) {
+-            switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR,
+-                              "LWS_CALLBACK_CLIENT_APPEND_HANDSHAKE_HEADER: failed to add OpenAI-Alpha header\n");
+-            return -1;
+-          }
+-
+           std::string apiKey = ap->getApiKey();
+           if (apiKey.length() > 0) {
+             std::string authHeaderStr = "Bearer " + apiKey;
+@@ -193,7 +167,7 @@
+         }
+ 
+         /* GPT Live is an all-JSON protocol in both directions: agent audio arrives
+-           base64-encoded inside output_audio.delta, never as a binary frame. */
++           base64-encoded inside session.output_audio.delta, never as a binary frame. */
+         if (lws_frame_is_binary(wsi)) {
+           switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "AudioPipe::lws_service_thread LWS_CALLBACK_CLIENT_RECEIVE received binary frame, discarding.\n");
+           return 0;
+@@ -304,11 +278,11 @@
+             size_t datalen = ap->m_audio_buffer_write_offset - LWS_PRE;
+ 
+             if (datalen >= MIN_AUDIO_BYTES) {
+-              /* GPT Live: input_audio.append, NOT input_audio_buffer.append (the
++              /* GPT Live: session.input_audio.append, NOT input_audio_buffer.append (the
+                  Realtime API's name), carrying base64 raw headerless mono pcm16
+                  LE at a fixed 24 kHz. */
+               std::ostringstream oss;
+-              oss << "{\"type\":\"input_audio.append\",\"audio\":\""
++              oss << "{\"type\":\"session.input_audio.append\",\"audio\":\""
+                   << drachtio::base64_encode((unsigned char const *) ap->m_audio_buffer + LWS_PRE, datalen) << "\"}";
+               std::string result = oss.str();
+               std::vector<uint8_t> buf(LWS_PRE + result.length());
+@@ -606,14 +580,10 @@
+    *
+    * lws emits an "Origin:" header only when i.origin is non-NULL
+    * (lib/roles/http/client/client-http.c), and because LCCSCF_USE_SSL is set it
+-   * would send "Origin: https://api.openai.com". /v1/live REFUSES any handshake
+-   * carrying an Origin header - it reads as a browser request, which is required
++   * would send "Origin: https://api.openai.com". An Origin makes the handshake
++   * read as a browser request, which is required
+    * to authenticate with an ephemeral token rather than a raw api key - and the
+-   * upgrade comes back 403 Forbidden. Measured against the live endpoint:
+-   *
+-   *   Authorization + OpenAI-Alpha, no Origin            -> 101
+-   *   Authorization + OpenAI-Alpha + Origin: https://...  -> 403
+-   *   Authorization, no OpenAI-Alpha                      -> 400
++   * upgrade can be rejected. This is a server-to-server API-key connection.
+    *
+    * /v1/realtime tolerates Origin, which is why the identical `i.origin =
+    * i.address` line is harmless in mod_openai_s2s. Do not "restore" it here.
+--- a/gptlive_glue.cpp
++++ b/gptlive_glue.cpp
+@@ -15,6 +15,7 @@
+ #include "jambonz/audio_player.hpp"
+ 
+ #include "audio_pipe.hpp"
++#include "output_activity.hpp"
+ 
+ #define RTP_PACKETIZATION_PERIOD 20
+ #define FRAME_SIZE_8000  320 /*which means each 20ms frame as 320 bytes at 8 khz (1 channel only)*/
+@@ -84,16 +85,8 @@
+     }
+   }
+ 
+-  /* cJSON stores every number in valuedouble; valueint is a plain int and would
+-     truncate a server-timeline value that outgrows 2^31 ms. */
+-  static bool getInt64(cJSON* obj, const char* name, int64_t* out) {
+-    cJSON* item = obj ? cJSON_GetObjectItem(obj, name) : nullptr;
+-    if (!item || !cJSON_IsNumber(item)) return false;
+-    *out = (int64_t) item->valuedouble;
+-    return true;
+-  }
+ 
+-  /* Both of these run on the websocket thread and touch tech_pvt->audioPlayer,
++  /* Runs on the websocket thread and touches tech_pvt->audioPlayer,
+      which session.delete detaches. Callers hold tech_pvt->mutex, so a non-null
+      pointer here is guaranteed to stay alive for the duration of the call. */
+   static void processIncomingAudio(private_t* tech_pvt, const char* base64_data) {
+@@ -102,65 +95,6 @@
+     p->bufferAudio(base64_data, strlen(base64_data));
+   }
+ 
+-  static void handleInterruption(private_t* tech_pvt, switch_core_session_t* session) {
+-    AudioPlayer* p = static_cast<AudioPlayer*>(tech_pvt->audioPlayer);
+-    if (!p) return;
+-    tech_pvt->process_interrupt = 1;
+-    /* clear(false) drops what the player has decoded so far; the write_replace
+-       thread clears the playout buffer again when it sees process_interrupt,
+-       which catches anything decoded between here and there. */
+-    p->clear(false);
+-    switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_INFO, "interrupt the assistant\n");
+-  }
+-
+-  /**
+-   * turn.created is the ONLY caller-speech signal in the GPT Live schema - there
+-   * is no input_audio_buffer.speech_started - so barge-in is taken from it.
+-   *
+-   * It needs a guard. Turn events are a projection over transcript fragments
+-   * whose boundaries "reflect cadence, not semantic turn boundaries", so ONE
+-   * caller utterance can be projected into several user turns and a later
+-   * projection can arrive after the agent has already started answering.
+-   * Barging in on that would drain the playout and cut off the very reply the
+-   * caller is listening to.
+-   *
+-   * The discriminator is the turn's own start_ms on the shared server timeline:
+-   * caller speech that STARTED BEFORE the agent's current audio burst is the
+-   * question being re-projected, while speech starting at or after the burst is
+-   * a real interruption. The comparison is against the burst START rather than
+-   * the newest delta because the vendor generates audio faster than realtime -
+-   * deltas are stamped seconds ahead of what the caller has actually heard, so
+-   * comparing against the latest delta would suppress genuine interruptions.
+-   *
+-   * Kept in lockstep with mediajam's internal/s2s/gptlive.go.
+-   */
+-  static void handleTurnCreated(private_t* tech_pvt, switch_core_session_t* session, cJSON* json) {
+-    cJSON* turn = cJSON_GetObjectItem(json, "turn");
+-    const char* role = turn ? cJSON_GetObjectCstr(turn, "role") : nullptr;
+-
+-    /* an assistant turn is the agent starting to talk; it must not clear its own playout */
+-    if (!role || 0 != strcmp(role, "user") || !tech_pvt->agent_burst_active) return;
+-
+-    /* A turn with no start_ms at all cannot be placed on the timeline, so fall
+-       back to treating it as barge-in: failing open keeps interruption working
+-       on an unexpected shape, where failing closed would let the agent talk over
+-       the caller. */
+-    int64_t turnStartMs = 0;
+-    if (getInt64(turn, "start_ms", &turnStartMs) && turnStartMs < tech_pvt->burst_start_ms) {
+-      switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG,
+-        "user turn at %lldms predates the current agent burst at %lldms; re-projection, not barge-in\n",
+-        (long long) turnStartMs, (long long) tech_pvt->burst_start_ms);
+-      return;
+-    }
+-
+-    /* The burst anchor is consumed whether or not anything is actually being
+-       heard right now, so the next delta re-anchors it. */
+-    tech_pvt->agent_burst_active = 0;
+-
+-    /* Only disturb the playout if the caller is in fact hearing the agent. */
+-    if (tech_pvt->assistant_is_speaking) handleInterruption(tech_pvt, session);
+-  }
+-
+   static void eventCallback(const char* sessionId, const char* bugname,
+     gptlive_s2s::AudioPipe::NotifyEvent_t event, const char* message) {
+     switch_core_session_t* session = switch_core_session_locate(sessionId);
+@@ -256,30 +190,26 @@
+                   "server event has no type, discarding: %s\n", message);
+                 forward = false;
+               }
+-              else if (0 == strcmp(type, "output_audio.delta")) {
++              else if (0 == strcmp(type, "session.output_audio.delta")) {
+                 /* Agent audio is consumed (played out), not forwarded: relaying
+                    megabytes of base64 to the application would flood the event
+                    hook for no benefit. */
+                 forward = false;
+ 
+-                const char* b64 = cJSON_GetObjectCstr(json, "audio");
++                const char* b64 = cJSON_GetObjectCstr(json, "delta");
+                 if (!b64 || '\0' == *b64) {
+                   switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_ERROR,
+-                    "output_audio.delta with no audio payload, discarding\n");
++                    "session.output_audio.delta with no delta payload, discarding\n");
+                 }
+                 else {
+-                  /* the first delta of a new burst anchors the barge-in comparison */
+-                  if (!tech_pvt->agent_burst_active) {
+-                    tech_pvt->agent_burst_active = 1;
+-                    tech_pvt->burst_start_ms = 0;
+-                    getInt64(json, "start_ms", &tech_pvt->burst_start_ms);
+-                  }
++                  /* Live manages speaking/listening continuously. Transcript
++                     fragments are not interruption or playback boundaries. */
+                   processIncomingAudio(tech_pvt, b64);
+                 }
+               }
+               else if (0 == strcmp(type, "session.started")) {
+                 /* The input gate. GPT Live withholds session.started until our
+-                   startup session.update is accepted, and caller audio sent
++                   startup session.start is accepted, and caller audio sent
+                    before it is rejected. There is no session.created /
+                    session.updated startup handshake as in the Realtime API. */
+                 if (!tech_pvt->session_started) {
+@@ -289,9 +219,6 @@
+                     "got session.started; streaming caller audio now\n");
+                 }
+               }
+-              else if (0 == strcmp(type, "turn.created")) {
+-                handleTurnCreated(tech_pvt, session, json);
+-              }
+ 
+               if (forward) {
+                 switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "gptlive server event (%s): %s\n", tech_pvt->bugname, message);
+@@ -351,6 +278,7 @@
+     auto audioPlayer = new AudioPlayer(tech_pvt->mutex, playoutBuffer, tech_pvt->sessionId);
+     audioPlayer->enableBase64Encoding(true);
+     audioPlayer->setResampling(GPTLIVE_SAMPLE_RATE, sampleRate);
++    tech_pvt->output_sample_rate = sampleRate;
+ 
+     tech_pvt->audioPlayer = (void *) audioPlayer;
+     tech_pvt->playoutBuffer = (void *) playoutBuffer;
+@@ -582,7 +510,7 @@
+ 
+     /* Unpublish the media objects under the same lock the websocket thread uses
+        to reach them, so the destruction below cannot race an in-flight
+-       output_audio.delta or barge-in. */
++       session.output_audio.delta or explicit audio clearing. */
+     detach_media(tech_pvt, &m);
+ 
+     switch_mutex_unlock(tech_pvt->mutex);
+@@ -598,9 +526,9 @@
+    * playback_started / playback_stopped transitions.
+    *
+    * These two events are synthesized by the media server, not by OpenAI: GPT
+-   * Live has no output_audio.done, so "the agent finished speaking" can only be
+-   * observed here, when the playout drains. They are the FS-module counterpart
+-   * of mediajam's playout goroutine.
++   * Live streams silent PCM between utterances, so a nonempty queue is not
++   * evidence of speech. Observe audible output before mixing without altering
++   * playback. These events describe local audio activity, not semantic turns.
+    */
+   switch_bool_t gptlive_s2s_write_frame(switch_media_bug_t *bug, void* user_data) {
+     private_t* tech_pvt = (private_t*) user_data;
+@@ -638,8 +566,14 @@
+       }
+     }
+ 
++    switch_frame_t* rframe = switch_core_media_bug_get_write_replace_frame(bug);
++    if (!rframe) {
++      switch_mutex_unlock(tech_pvt->mutex);
++      return SWITCH_TRUE;
++    }
++    gptlive_s2s::OutputActivity activity(tech_pvt->assistant_is_speaking, tech_pvt->output_quiet_us);
++    int transition = 0;
+     if (playoutBuffer->size() > 0) {
+-      switch_frame_t* rframe = switch_core_media_bug_get_write_replace_frame(bug);
+       int16_t *fp = reinterpret_cast<int16_t*>(rframe->data);
+       int samples = (int) rframe->samples;
+ 
+@@ -662,22 +596,24 @@
+           if (samplesToCopy < samples) {
+             memset(data + samplesToCopy, 0, (samples - samplesToCopy) * sizeof(int16_t));
+           }
++          transition = activity.update(data, samples, tech_pvt->output_sample_rate);
+           vector_add(fp, data, samples);
+           vector_normalize(fp, samples);
+           switch_core_media_bug_set_write_replace_frame(bug, rframe);
+         }
+ 
+-        // notify when assistant starts speaking
+-        if (!tech_pvt->assistant_is_speaking) {
+-          tech_pvt->assistant_is_speaking = 1;
+-          tech_pvt->responseHandler(session, GPTLIVE_EVENT_SERVER,
+-            "{\"type\": \"output_audio.playback_started\"}", tech_pvt->bugname);
+-        }
+       }
+     }
+-    else if (tech_pvt->assistant_is_speaking) {
+-      // notify when assistant stops speaking
+-      tech_pvt->assistant_is_speaking = 0;
++    else {
++      transition = activity.update(nullptr, rframe->samples, tech_pvt->output_sample_rate);
++    }
++    tech_pvt->assistant_is_speaking = activity.active;
++    tech_pvt->output_quiet_us = activity.quiet_us;
++    if (transition > 0) {
++      tech_pvt->responseHandler(session, GPTLIVE_EVENT_SERVER,
++        "{\"type\": \"output_audio.playback_started\"}", tech_pvt->bugname);
++    }
++    else if (transition < 0) {
+       tech_pvt->responseHandler(session, GPTLIVE_EVENT_SERVER,
+         "{\"type\": \"output_audio.playback_stopped\", \"completion_reason\": \"completed\"}", tech_pvt->bugname);
+       switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "assistant stopped speaking (completed normally)\n");
+@@ -695,7 +631,7 @@
+     if (!tech_pvt) return SWITCH_TRUE;
+ 
+     /* The input gate: GPT Live rejects caller audio sent before session.started,
+-       so hold off until the server has accepted our startup session.update. */
++       so hold off until the server has accepted our startup session.start. */
+     if (tech_pvt->state != SESSION_STATE_CONVERSATION_STARTED) {
+       return SWITCH_TRUE;
+     }
+--- a/mod_gptlive_s2s.h
++++ b/mod_gptlive_s2s.h
+@@ -49,7 +49,7 @@
+   int buffer_overrun_notified;
+ 
+   /* the input gate: GPT Live withholds session.started until our startup
+-   * session.update is accepted, and caller audio sent before it is rejected.
++   * session.start is accepted, and caller audio sent before it is rejected.
+    * Written on the websocket thread, read on the media threads. */
+   int session_started;
+ 
+@@ -57,19 +57,13 @@
+    * currently hearing agent audio. This is what gates barge-in and what the
+    * playback_started/playback_stopped events report. */
+   int assistant_is_speaking;
++  uint64_t output_quiet_us;
++  unsigned int output_sample_rate;
+ 
+   /* set by the websocket thread on barge-in, consumed by the write_replace
+    * thread (the only thread that may touch the playout buffer) */
+   int process_interrupt;
+ 
+-  /* Protocol-timeline state for the barge-in guard, websocket thread only.
+-   * agent_burst_active says a run of output_audio.delta frames has begun since
+-   * the last barge-in, and burst_start_ms is the start_ms of the first delta in
+-   * that run. See handleTurnCreated() for why the comparison is against the
+-   * burst START rather than the newest delta. */
+-  int agent_burst_active;
+-  int64_t burst_start_ms;
+-
+   // audio output
+   void *audioPlayer;
+   void *playoutBuffer;
+--- /dev/null
++++ b/output_activity.hpp
+@@ -0,0 +1,48 @@
++#ifndef GPTLIVE_OUTPUT_ACTIVITY_HPP
++#define GPTLIVE_OUTPUT_ACTIVITY_HPP
++
++#include <cstddef>
++#include <cstdint>
++
++namespace gptlive_s2s {
++// Observes output PCM only; it never removes, gates, or modifies playback audio.
++// A short quiet hold avoids reporting every gap between words as a stop.
++// Production probe: silent transient peaked at 46, speech onset at 111.
++// Peak 100 separates those observations; it is not semantic turn detection.
++class OutputActivity {
++public:
++  bool active;
++  uint64_t quiet_us;
++
++  OutputActivity(bool active = false, uint64_t quiet_us = 0)
++    : active(active), quiet_us(quiet_us) {}
++
++  int update(const int16_t* pcm, size_t samples, unsigned int rate) {
++    if (!rate || !samples) return 0;
++    bool audible = false;
++    if (pcm) {
++      for (size_t i = 0; i < samples; ++i) {
++        const int value = pcm[i];
++        if (value > 100 || value < -100) {
++          audible = true;
++          break;
++        }
++      }
++    }
++    if (audible) {
++      quiet_us = 0;
++      if (active) return 0;
++      active = true;
++      return 1;
++    }
++    if (!active) return 0;
++    quiet_us += static_cast<uint64_t>(samples) * 1000000 / rate;
++    if (quiet_us < 200000) return 0;
++    active = false;
++    quiet_us = 0;
++    return -1;
++  }
++};
++}
++
++#endif
